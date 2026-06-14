@@ -1,4 +1,6 @@
 import { Users, DollarSign, CheckCircle, Clock } from "lucide-react";
+import { useEffect, useState } from "react";
+import api from "../lib/api";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useLocation } from "wouter";
@@ -6,67 +8,100 @@ import { useLocation } from "wouter";
 export default function Dashboard() {
   const [, setLocation] = useLocation();
 
-  // Dados simulados - será integrado com backend
-  const kpis = [
+  const [kpis, setKpis] = useState([
     {
       title: "SERVIÇOS EM ANDAMENTO",
-      value: "12",
+      value: "0",
       icon: Clock,
       color: "text-blue-400",
       bgColor: "bg-blue-500/10",
     },
     {
       title: "RECEITA DO MÊS",
-      value: "R$ 8.450,00",
+      value: "R$ 0,00",
       icon: DollarSign,
       color: "text-green-400",
       bgColor: "bg-green-500/10",
     },
     {
       title: "FINALIZADOS",
-      value: "28",
+      value: "0",
       icon: CheckCircle,
       color: "text-emerald-400",
       bgColor: "bg-emerald-500/10",
     },
     {
       title: "LUCRO LÍQUIDO",
-      value: "R$ 3.120,50",
+      value: "R$ 0,00",
       icon: DollarSign,
       color: "text-[#DEAE60]",
       bgColor: "bg-[#DEAE60]/10",
     },
-  ];
+  ]);
+  const [recentServices, setRecentServices] = useState([]);
 
-  const recentServices = [
-    {
-      id: 1,
-      patient: "João Silva",
-      dentist: "Dr. Carlos",
-      procedure: "Coroa Dentária",
-      time: "14:30",
-      status: "Em Andamento",
-      statusColor: "bg-blue-500/20 text-blue-300",
-    },
-    {
-      id: 2,
-      patient: "Maria Santos",
-      dentist: "Dra. Ana",
-      procedure: "Prótese Parcial",
-      time: "15:45",
-      status: "Pendente",
-      statusColor: "bg-amber-500/20 text-amber-300",
-    },
-    {
-      id: 3,
-      patient: "Pedro Costa",
-      dentist: "Dr. Fernando",
-      procedure: "Implante",
-      time: "16:00",
-      status: "Pendente",
-      statusColor: "bg-amber-500/20 text-amber-300",
-    },
-  ];
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const resumoResponse = await api.get("/relatorios/resumo");
+        const { totais } = resumoResponse.data;
+
+        setKpis([
+          {
+            title: "SERVIÇOS EM ANDAMENTO",
+            value: "0", // TODO: Implementar contagem de serviços em andamento no backend
+            icon: Clock,
+            color: "text-blue-400",
+            bgColor: "bg-blue-500/10",
+          },
+          {
+            title: "RECEITA DO MÊS",
+            value: `R$ ${totais.receita.toFixed(2).replace(".", ",")}`,
+            icon: DollarSign,
+            color: "text-green-400",
+            bgColor: "bg-green-500/10",
+          },
+          {
+            title: "FINALIZADOS",
+            value: totais.quantidade.toString(),
+            icon: CheckCircle,
+            color: "text-emerald-400",
+            bgColor: "bg-emerald-500/10",
+          },
+          {
+            title: "LUCRO LÍQUIDO",
+            value: `R$ ${totais.lucro.toFixed(2).replace(".", ",")}`,
+            icon: DollarSign,
+            color: "text-[#DEAE60]",
+            bgColor: "bg-[#DEAE60]/10",
+          },
+        ]);
+
+        const trabalhosResponse = await api.get("/trabalhos?limit=3"); // Pegar os 3 últimos trabalhos
+        setRecentServices(trabalhosResponse.data.map((trabalho: any) => ({
+          id: trabalho.id,
+          patient: trabalho.paciente_nome,
+          dentist: trabalho.dentista_nome,
+          procedure: trabalho.procedimento,
+          time: new Date(trabalho.data_entrada).toLocaleDateString("pt-BR"), // Ajustar para hora se necessário
+          status: trabalho.status,
+          statusColor: trabalho.status === "Em Andamento" ? "bg-blue-500/20 text-blue-300" :
+                       trabalho.status === "Pendente" ? "bg-amber-500/20 text-amber-300" :
+                       trabalho.status === "Finalizado" ? "bg-green-500/20 text-green-300" :
+                       "bg-red-500/20 text-red-300",
+        })));
+
+      } catch (error) {
+        console.error("Erro ao buscar dados do dashboard:", error);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+
+
+
 
   return (
     <div className="min-h-screen bg-neutral-950 p-6">
