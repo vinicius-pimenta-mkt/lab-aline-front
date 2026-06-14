@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import api from "../lib/api";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,63 +15,29 @@ export default function Services() {
   const [prioridadeFilter, setPrioridadeFilter] = useState("all");
   const [viewFilter, setViewFilter] = useState("todos");
 
-  const services = [
-    {
-      id: 1,
-      paciente_nome: "João Silva",
-      dentista_nome: "Dr. Carlos",
-      procedimento: "Coroa Dentária",
-      status: "Em Andamento",
-      prioridade: "normal",
-      valor_bruto: 450,
-      prazo_entrega: "2026-06-15",
-      dias_atraso: 0,
-    },
-    {
-      id: 2,
-      paciente_nome: "Maria Santos",
-      dentista_nome: "Dra. Ana",
-      procedimento: "Prótese Parcial",
-      status: "Pendente",
-      prioridade: "urgente",
-      valor_bruto: 1200,
-      prazo_entrega: "2026-06-10",
-      dias_atraso: 2,
-    },
-    {
-      id: 3,
-      paciente_nome: "Pedro Costa",
-      dentista_nome: "Dr. Fernando",
-      procedimento: "Implante",
-      status: "Finalizado",
-      prioridade: "normal",
-      valor_bruto: 2500,
-      prazo_entrega: "2026-06-06",
-      dias_atraso: 0,
-    },
-    {
-      id: 4,
-      paciente_nome: "Ana Oliveira",
-      dentista_nome: "Dra. Beatriz",
-      procedimento: "Limpeza e Ajuste",
-      status: "Em Andamento",
-      prioridade: "vip",
-      valor_bruto: 300,
-      prazo_entrega: "2026-06-12",
-      dias_atraso: 0,
-    },
-    {
-      id: 5,
-      paciente_nome: "Carlos Mendes",
-      dentista_nome: "Dr. Roberto",
-      procedimento: "Ponte Fixa",
-      status: "Pendente",
-      prioridade: "normal",
-      valor_bruto: 1800,
-      prazo_entrega: "2026-06-18",
-      dias_atraso: 0,
-    },
-  ];
+  const [services, setServices] = useState([]);
+
+  useEffect(() => {
+    const fetchServices = async () => {
+      try {
+        const response = await api.get("/trabalhos");
+        setServices(response.data.map((trabalho: any) => ({
+          id: trabalho.id,
+          paciente_nome: trabalho.paciente_nome,
+          dentista_nome: trabalho.dentista_nome,
+          procedimento: trabalho.procedimento,
+          status: trabalho.status,
+          prioridade: trabalho.prioridade || "normal", // Assumindo 'normal' como padrão se não houver prioridade
+          valor_bruto: trabalho.valor_bruto,
+          prazo_entrega: trabalho.data_entrega, // Usar data_entrega do backend
+          dias_atraso: 0, // TODO: Calcular dias de atraso no frontend ou backend
+        })));
+      } catch (error) {
+        console.error("Erro ao buscar serviços:", error);
+      }
+    };
+    fetchServices();
+  }, []);
 
   const getStatusColor = (status) => {
     switch (status) {
