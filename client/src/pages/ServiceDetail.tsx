@@ -122,10 +122,11 @@ export default function ServiceDetail() {
         status: service.status,
         prioridade: service.prioridade,
         prazo_entrega: service.prazo_entrega,
-        forma_pagamento: service.forma_pagamento, // Enviando pro BD
+        forma_pagamento: service.forma_pagamento,
         valor_bruto: service.grossValue,
         custo_operacional: service.operationCost,
         etapas: service.stages,
+        data_saida: service.status === "Finalizado" ? service.completedAt : null // <- ENVIA A DATA AQUI
       });
       toast.success("Serviço atualizado com sucesso!");
       setEditing(false);
