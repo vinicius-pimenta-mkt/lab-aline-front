@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { useLocation } from "wouter";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Search, Plus, AlertCircle, Clock, CheckCircle2 } from "lucide-react";
+import { Search, Plus, AlertCircle } from "lucide-react";
 
 export default function Services() {
   const [, setLocation] = useLocation();
@@ -15,23 +15,27 @@ export default function Services() {
   const [prioridadeFilter, setPrioridadeFilter] = useState("all");
   const [viewFilter, setViewFilter] = useState("todos");
 
-  const [services, setServices] = useState([]);
+  const [services, setServices] = useState<any[]>([]);
 
   useEffect(() => {
     const fetchServices = async () => {
       try {
         const response = await api.get("/trabalhos");
-        setServices(response.data.map((trabalho: any) => ({
+        
+        // BLINDAGEM 1: Garantir que nenhum campo venha como null ou undefined
+        const safeData = response.data.map((trabalho: any) => ({
           id: trabalho.id,
-          paciente_nome: trabalho.paciente_nome,
-          dentista_nome: trabalho.dentista_nome,
-          procedimento: trabalho.procedimento,
-          status: trabalho.status,
-          prioridade: trabalho.prioridade || "normal", // Assumindo 'normal' como padrão se não houver prioridade
-          valor_bruto: trabalho.valor_bruto,
-          prazo_entrega: trabalho.data_entrega, // Usar data_entrega do backend
-          dias_atraso: 0, // TODO: Calcular dias de atraso no frontend ou backend
-        })));
+          paciente_nome: trabalho.paciente_nome || "Nome não registrado",
+          dentista_nome: trabalho.dentista_nome || "Nome não registrado",
+          procedimento: trabalho.procedimento || "Procedimento não especificado",
+          status: trabalho.status || "Pendente",
+          prioridade: trabalho.prioridade || "normal",
+          valor_bruto: Number(trabalho.valor_bruto) || 0,
+          prazo_entrega: trabalho.data_entrega || new Date().toISOString(),
+          dias_atraso: 0, 
+        }));
+        
+        setServices(safeData);
       } catch (error) {
         console.error("Erro ao buscar serviços:", error);
       }
@@ -39,7 +43,7 @@ export default function Services() {
     fetchServices();
   }, []);
 
-  const getStatusColor = (status) => {
+  const getStatusColor = (status: string) => {
     switch (status) {
       case "Pendente":
         return "bg-yellow-500/20 text-yellow-400";
@@ -52,7 +56,7 @@ export default function Services() {
     }
   };
 
-  const getPrioridadeColor = (prioridade) => {
+  const getPrioridadeColor = (prioridade: string) => {
     switch (prioridade) {
       case "urgente":
         return "bg-red-500/20 text-red-400";
@@ -63,11 +67,15 @@ export default function Services() {
     }
   };
 
+  // BLINDAGEM 2: Garantir que a pesquisa não quebre se o texto for vazio
   let filteredServices = services.filter((service) => {
+    const searchLower = searchTerm.toLowerCase();
+    
     const matchesSearch =
-      service.paciente_nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      service.dentista_nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      service.procedimento.toLowerCase().includes(searchTerm.toLowerCase());
+      (service.paciente_nome || "").toLowerCase().includes(searchLower) ||
+      (service.dentista_nome || "").toLowerCase().includes(searchLower) ||
+      (service.procedimento || "").toLowerCase().includes(searchLower);
+      
     const matchesStatus = statusFilter === "all" || service.status === statusFilter;
     const matchesPrioridade = prioridadeFilter === "all" || service.prioridade === prioridadeFilter;
     
@@ -109,7 +117,6 @@ export default function Services() {
       {/* Filtros */}
       <Card className="bg-neutral-900 border-neutral-800 p-6 mb-6">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-          {/* Busca */}
           <div className="relative">
             <Search size={18} className="absolute left-3 top-3 text-neutral-500" />
             <Input
@@ -120,7 +127,6 @@ export default function Services() {
             />
           </div>
 
-          {/* Status */}
           <Select value={statusFilter} onValueChange={setStatusFilter}>
             <SelectTrigger className="bg-neutral-800 border-neutral-700 text-white">
               <SelectValue placeholder="Status" />
@@ -133,7 +139,6 @@ export default function Services() {
             </SelectContent>
           </Select>
 
-          {/* Prioridade */}
           <Select value={prioridadeFilter} onValueChange={setPrioridadeFilter}>
             <SelectTrigger className="bg-neutral-800 border-neutral-700 text-white">
               <SelectValue placeholder="Prioridade" />
@@ -146,7 +151,6 @@ export default function Services() {
             </SelectContent>
           </Select>
 
-          {/* Visualização */}
           <Select value={viewFilter} onValueChange={setViewFilter}>
             <SelectTrigger className="bg-neutral-800 border-neutral-700 text-white">
               <SelectValue placeholder="Visualização" />
@@ -158,9 +162,8 @@ export default function Services() {
             </SelectContent>
           </Select>
 
-          {/* Resultado */}
           <div className="flex items-center justify-center bg-neutral-800 rounded-lg px-4">
-            <span className="text-neutral-400 text-sm">
+            <span className="text-neutral-400 text-sm font-bold">
               {filteredServices.length} serviço{filteredServices.length !== 1 ? "s" : ""}
             </span>
           </div>
@@ -171,63 +174,61 @@ export default function Services() {
       {filteredServices.some((s) => s.dias_atraso > 0) && (
         <Card className="bg-red-500/10 border-red-500/30 p-4 mb-6 flex items-center gap-3">
           <AlertCircle size={20} className="text-red-400" />
-          <span className="text-red-400 text-sm">
+          <span className="text-red-400 text-sm font-bold">
             ⚠️ Você tem {filteredServices.filter((s) => s.dias_atraso > 0).length} serviço(s) atrasado(s)
           </span>
         </Card>
       )}
 
       {/* Tabela de Serviços */}
-      <Card className="bg-neutral-900 border-neutral-800 overflow-hidden">
+      <Card className="bg-neutral-900 border-neutral-800 overflow-hidden shadow-xl">
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-neutral-800 border-b border-neutral-700">
+            <thead className="bg-neutral-950 border-b border-neutral-800">
               <tr>
-                <th className="px-6 py-4 text-left text-sm font-bold text-neutral-300 uppercase">
+                <th className="px-6 py-4 text-left text-xs font-bold text-neutral-500 uppercase tracking-wider">
                   Paciente
                 </th>
-                <th className="px-6 py-4 text-left text-sm font-bold text-neutral-300 uppercase">
+                <th className="px-6 py-4 text-left text-xs font-bold text-neutral-500 uppercase tracking-wider">
                   Dentista
                 </th>
-                <th className="px-6 py-4 text-left text-sm font-bold text-neutral-300 uppercase">
+                <th className="px-6 py-4 text-left text-xs font-bold text-neutral-500 uppercase tracking-wider">
                   Procedimento
                 </th>
-                <th className="px-6 py-4 text-left text-sm font-bold text-neutral-300 uppercase">
+                <th className="px-6 py-4 text-left text-xs font-bold text-neutral-500 uppercase tracking-wider">
                   Status
                 </th>
-                <th className="px-6 py-4 text-left text-sm font-bold text-neutral-300 uppercase">
+                <th className="px-6 py-4 text-left text-xs font-bold text-neutral-500 uppercase tracking-wider">
                   Prioridade
                 </th>
-                <th className="px-6 py-4 text-left text-sm font-bold text-neutral-300 uppercase">
+                <th className="px-6 py-4 text-left text-xs font-bold text-neutral-500 uppercase tracking-wider">
                   Valor
                 </th>
-                <th className="px-6 py-4 text-left text-sm font-bold text-neutral-300 uppercase">
+                <th className="px-6 py-4 text-left text-xs font-bold text-neutral-500 uppercase tracking-wider">
                   Ações
                 </th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="divide-y divide-neutral-800/50">
               {filteredServices.map((service, idx) => (
                 <tr
                   key={service.id}
-                  className={`border-b border-neutral-800 hover:bg-neutral-800/50 transition-colors ${
-                    idx % 2 === 0 ? "bg-neutral-900" : "bg-neutral-800/30"
-                  }`}
+                  className="hover:bg-neutral-800/30 transition-colors"
                 >
                   <td className="px-6 py-4 text-sm font-bold text-white">{service.paciente_nome}</td>
-                  <td className="px-6 py-4 text-sm text-neutral-300">{service.dentista_nome}</td>
-                  <td className="px-6 py-4 text-sm text-neutral-300">{service.procedimento}</td>
+                  <td className="px-6 py-4 text-sm text-neutral-400">{service.dentista_nome}</td>
+                  <td className="px-6 py-4 text-sm text-neutral-400">{service.procedimento}</td>
                   <td className="px-6 py-4 text-sm">
-                    <Badge className={`${getStatusColor(service.status)} flex items-center gap-1 w-fit`}>
+                    <Badge className={`${getStatusColor(service.status)} border-0 font-bold`}>
                       {service.status}
                     </Badge>
                   </td>
                   <td className="px-6 py-4 text-sm">
-                    <Badge className={getPrioridadeColor(service.prioridade)}>
+                    <Badge className={`${getPrioridadeColor(service.prioridade)} border-0 font-bold`}>
                       {service.prioridade.charAt(0).toUpperCase() + service.prioridade.slice(1)}
                     </Badge>
                   </td>
-                  <td className="px-6 py-4 text-sm font-bold text-[#DEAE60]">R$ {service.valor_bruto.toFixed(2).replace(".", ",")}</td>
+                  <td className="px-6 py-4 text-sm font-black text-[#DEAE60]">R$ {service.valor_bruto.toFixed(2).replace(".", ",")}</td>
                   <td className="px-6 py-4 text-sm">
                     <button
                       onClick={() => setLocation(`/services/${service.id}`)}
@@ -243,8 +244,9 @@ export default function Services() {
         </div>
 
         {filteredServices.length === 0 && (
-          <div className="p-8 text-center">
-            <p className="text-neutral-400 text-sm">Nenhum serviço encontrado com os filtros selecionados</p>
+          <div className="p-12 text-center flex flex-col items-center justify-center">
+            <Search className="w-12 h-12 text-neutral-800 mb-4" />
+            <p className="text-neutral-400 text-sm font-medium">Nenhum serviço encontrado com os filtros selecionados</p>
           </div>
         )}
       </Card>
