@@ -33,9 +33,11 @@ interface ServiceFormData {
   procedure: string;
   description: string;
   grossValue: string;
-  paymentMethod: string; // Novo: Forma de pagamento
+  paymentMethod: string;
   priority: string;
   dueDate: string;
+  status: string;
+  completedAt: string;
   costs: Cost[];
   etapas: StepForm[];
 }
@@ -52,9 +54,11 @@ export default function NewService() {
     procedure: "",
     description: "",
     grossValue: "",
-    paymentMethod: "", // Inicializa vazio
+    paymentMethod: "",
     priority: "normal",
     dueDate: "",
+    status: "Pendente",
+    completedAt: "",
     costs: [{ id: Date.now(), name: "", value: "" }],
     etapas: [{ id: Date.now() + 1, nome: "Modelo de Gesso", descricao: "Vazamento inicial do modelo", status: "pending" }],
   });
@@ -138,18 +142,20 @@ export default function NewService() {
         prioridade: formData.priority,
         prazo_entrega: formData.dueDate,
         valor_bruto: grossValue,
-        forma_pagamento: formData.paymentMethod, // Envia a forma de pagamento
+        forma_pagamento: formData.paymentMethod,
         custo_operacional: totalOperationCost,
         resumo_trabalho: formData.patientNotes,
         observacoes: formData.dentistNotes,
         etapas: formData.etapas,
+        status: formData.status, // Envia o Status inicial
+        data_saida: formData.status === "Finalizado" ? formData.completedAt : null // Envia a data retroativa se finalizado
       });
       
-      toast.success("Serviço registrado com sucesso!");
+      toast.success("Serviço registado com sucesso!");
       setLocation("/services");
     } catch (error: any) {
       console.error(error.response?.data);
-      toast.error(error.response?.data?.error || "Erro ao registrar serviço na API");
+      toast.error(error.response?.data?.error || "Erro ao registar serviço na API");
     } finally {
       setLoading(false);
     }
@@ -177,7 +183,7 @@ export default function NewService() {
 
       {/* Formulário */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Seção Principal */}
+        {/* Secção Principal */}
         <div className="lg:col-span-2">
           <Card className="bg-neutral-900/50 border-neutral-800 p-8 shadow-xl">
             <form onSubmit={handleSubmit} className="space-y-8">
@@ -186,9 +192,10 @@ export default function NewService() {
               <div>
                 <h2 className="text-sm font-black text-[#DEAE60] uppercase tracking-widest mb-4 flex items-center gap-2">
                   <Calendar className="w-4 h-4" />
-                  Prazo & Prioridade
+                  Prazos, Prioridade & Status
                 </h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   <div className="space-y-2">
                     <Label htmlFor="dueDate" className="text-xs font-bold text-neutral-400 uppercase">
                       Prazo de Entrega *
@@ -204,11 +211,11 @@ export default function NewService() {
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="priority" className="text-xs font-bold text-neutral-400 uppercase">
-                      Prioridade do Trabalho
+                      Prioridade
                     </Label>
                     <Select value={formData.priority} onValueChange={(value) => handleSelectChange("priority", value)}>
-                      <SelectTrigger className="bg-neutral-900 border-neutral-800 text-white focus:ring-1 focus:ring-[#DEAE60]/50">
-                        <SelectValue placeholder="Selecione a prioridade" />
+                      <SelectTrigger className="bg-neutral-900 border-neutral-800 text-white focus:ring-1 focus:ring-[#DEAE60]/50 h-10">
+                        <SelectValue placeholder="Selecione" />
                       </SelectTrigger>
                       <SelectContent className="bg-neutral-900 border-neutral-800">
                         <SelectItem value="normal">Normal</SelectItem>
@@ -221,7 +228,47 @@ export default function NewService() {
                       </SelectContent>
                     </Select>
                   </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="status" className="text-xs font-bold text-neutral-400 uppercase">
+                      Status Inicial
+                    </Label>
+                    <Select 
+                      value={formData.status} 
+                      onValueChange={(value) => {
+                        setFormData(prev => ({
+                          ...prev,
+                          status: value,
+                          completedAt: value === "Finalizado" && !prev.completedAt ? new Date().toISOString().split("T")[0] : prev.completedAt
+                        }));
+                      }}
+                    >
+                      <SelectTrigger className="bg-neutral-900 border-neutral-800 text-white focus:ring-1 focus:ring-[#DEAE60]/50 h-10">
+                        <SelectValue placeholder="Status" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-neutral-900 border-neutral-800 text-white">
+                        <SelectItem value="Pendente">Pendente</SelectItem>
+                        <SelectItem value="Em Andamento">Em Andamento</SelectItem>
+                        <SelectItem value="Finalizado">Finalizado</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
+
+                {formData.status === "Finalizado" && (
+                  <div className="mt-6 border-t border-neutral-800/50 pt-6 w-full md:w-1/3">
+                    <Label htmlFor="completedAt" className="text-xs font-bold text-neutral-400 uppercase text-green-400">
+                      Data de Finalização *
+                    </Label>
+                    <Input
+                      id="completedAt"
+                      name="completedAt"
+                      type="date"
+                      value={formData.completedAt}
+                      onChange={handleChange}
+                      className={`${inputBaseStyle} mt-2 border-green-500/30 focus-visible:ring-green-500/50`}
+                    />
+                  </div>
+                )}
               </div>
 
               {/* Informações do Paciente */}
@@ -232,41 +279,15 @@ export default function NewService() {
                     <Label htmlFor="patientName" className="text-xs font-bold text-neutral-400 uppercase">
                       Nome do Paciente *
                     </Label>
-                    <Input
-                      id="patientName"
-                      name="patientName"
-                      placeholder="Ex: João Silva"
-                      value={formData.patientName}
-                      onChange={handleChange}
-                      className={inputBaseStyle}
-                    />
+                    <Input id="patientName" name="patientName" placeholder="Ex: João Silva" value={formData.patientName} onChange={handleChange} className={inputBaseStyle} />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="patientPhone" className="text-xs font-bold text-neutral-400 uppercase">
-                      Telefone do Paciente
-                    </Label>
-                    <Input
-                      id="patientPhone"
-                      name="patientPhone"
-                      placeholder="Ex: (11) 99999-9999"
-                      value={formData.patientPhone}
-                      onChange={handleChange}
-                      className={inputBaseStyle}
-                    />
+                    <Label htmlFor="patientPhone" className="text-xs font-bold text-neutral-400 uppercase">Telefone do Paciente</Label>
+                    <Input id="patientPhone" name="patientPhone" placeholder="Ex: (11) 99999-9999" value={formData.patientPhone} onChange={handleChange} className={inputBaseStyle} />
                   </div>
                   <div className="space-y-2 md:col-span-2">
-                    <Label htmlFor="patientNotes" className="text-xs font-bold text-neutral-400 uppercase">
-                      Sobre o Caso (Paciente)
-                    </Label>
-                    <Textarea
-                      id="patientNotes"
-                      name="patientNotes"
-                      placeholder="Detalhes clínicos, cor do dente, particularidades do paciente..."
-                      value={formData.patientNotes}
-                      onChange={handleChange}
-                      rows={2}
-                      className={inputBaseStyle}
-                    />
+                    <Label htmlFor="patientNotes" className="text-xs font-bold text-neutral-400 uppercase">Sobre o Caso (Paciente)</Label>
+                    <Textarea id="patientNotes" name="patientNotes" placeholder="Detalhes clínicos, cor do dente, particularidades do paciente..." value={formData.patientNotes} onChange={handleChange} rows={2} className={inputBaseStyle} />
                   </div>
                 </div>
               </div>
@@ -276,44 +297,16 @@ export default function NewService() {
                 <h2 className="text-sm font-black text-[#DEAE60] uppercase tracking-widest mb-4">Informações do Dentista</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
-                    <Label htmlFor="dentistName" className="text-xs font-bold text-neutral-400 uppercase">
-                      Nome do Dentista *
-                    </Label>
-                    <Input
-                      id="dentistName"
-                      name="dentistName"
-                      placeholder="Ex: Dr. Carlos"
-                      value={formData.dentistName}
-                      onChange={handleChange}
-                      className={inputBaseStyle}
-                    />
+                    <Label htmlFor="dentistName" className="text-xs font-bold text-neutral-400 uppercase">Nome do Dentista *</Label>
+                    <Input id="dentistName" name="dentistName" placeholder="Ex: Dr. Carlos" value={formData.dentistName} onChange={handleChange} className={inputBaseStyle} />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="dentistPhone" className="text-xs font-bold text-neutral-400 uppercase">
-                      Telefone do Dentista
-                    </Label>
-                    <Input
-                      id="dentistPhone"
-                      name="dentistPhone"
-                      placeholder="Ex: (11) 98888-8888"
-                      value={formData.dentistPhone}
-                      onChange={handleChange}
-                      className={inputBaseStyle}
-                    />
+                    <Label htmlFor="dentistPhone" className="text-xs font-bold text-neutral-400 uppercase">Telefone do Dentista</Label>
+                    <Input id="dentistPhone" name="dentistPhone" placeholder="Ex: (11) 98888-8888" value={formData.dentistPhone} onChange={handleChange} className={inputBaseStyle} />
                   </div>
                   <div className="space-y-2 md:col-span-2">
-                    <Label htmlFor="dentistNotes" className="text-xs font-bold text-neutral-400 uppercase">
-                      Sobre a Solicitação
-                    </Label>
-                    <Textarea
-                      id="dentistNotes"
-                      name="dentistNotes"
-                      placeholder="Instruções específicas enviadas pelo dentista..."
-                      value={formData.dentistNotes}
-                      onChange={handleChange}
-                      rows={2}
-                      className={inputBaseStyle}
-                    />
+                    <Label htmlFor="dentistNotes" className="text-xs font-bold text-neutral-400 uppercase">Sobre a Solicitação</Label>
+                    <Textarea id="dentistNotes" name="dentistNotes" placeholder="Instruções específicas enviadas pelo dentista..." value={formData.dentistNotes} onChange={handleChange} rows={2} className={inputBaseStyle} />
                   </div>
                 </div>
               </div>
@@ -323,42 +316,16 @@ export default function NewService() {
                 <h2 className="text-sm font-black text-[#DEAE60] uppercase tracking-widest mb-4">Detalhes do Serviço</h2>
                 <div className="space-y-6">
                   <div className="space-y-2">
-                    <Label htmlFor="procedure" className="text-xs font-bold text-neutral-400 uppercase">
-                      Tipo de Procedimento *
-                    </Label>
-                    <Input
-                      id="procedure"
-                      name="procedure"
-                      list="procedure-options"
-                      placeholder="Digite para buscar ou criar um procedimento"
-                      value={formData.procedure}
-                      onChange={handleChange}
-                      className={inputBaseStyle}
-                    />
+                    <Label htmlFor="procedure" className="text-xs font-bold text-neutral-400 uppercase">Tipo de Procedimento *</Label>
+                    <Input id="procedure" name="procedure" list="procedure-options" placeholder="Digite para buscar ou criar um procedimento" value={formData.procedure} onChange={handleChange} className={inputBaseStyle} />
                     <datalist id="procedure-options">
-                      <option value="Coroa Unitária" />
-                      <option value="Ponte Fixa" />
-                      <option value="Prótese Total" />
-                      <option value="Prótese Parcial" />
-                      <option value="Coroa sobre Implante" />
-                      <option value="Placa de Bruxismo" />
-                      <option value="Protocolo" />
+                      <option value="Coroa Unitária" /><option value="Ponte Fixa" /><option value="Prótese Total" />
+                      <option value="Prótese Parcial" /><option value="Coroa sobre Implante" /><option value="Placa de Bruxismo" /><option value="Protocolo" />
                     </datalist>
                   </div>
-
                   <div className="space-y-2">
-                    <Label htmlFor="description" className="text-xs font-bold text-neutral-400 uppercase">
-                      Descrição do Trabalho
-                    </Label>
-                    <Textarea
-                      id="description"
-                      name="description"
-                      placeholder="Descreva os materiais utilizados, etc."
-                      value={formData.description}
-                      onChange={handleChange}
-                      rows={3}
-                      className={inputBaseStyle}
-                    />
+                    <Label htmlFor="description" className="text-xs font-bold text-neutral-400 uppercase">Descrição do Trabalho</Label>
+                    <Textarea id="description" name="description" placeholder="Descreva os materiais utilizados, etc." value={formData.description} onChange={handleChange} rows={3} className={inputBaseStyle} />
                   </div>
                 </div>
               </div>
@@ -369,51 +336,24 @@ export default function NewService() {
                   <h2 className="text-sm font-black text-[#DEAE60] uppercase tracking-widest flex items-center gap-2">
                     <Layers className="w-5 h-5" /> Linha de Produção (Etapas)
                   </h2>
-                  <Button
-                    type="button"
-                    onClick={handleAddStep}
-                    variant="ghost"
-                    size="sm"
-                    className="h-8 text-xs text-[#DEAE60] hover:text-[#DEAE60] hover:bg-[#DEAE60]/10"
-                  >
-                    <Plus className="w-3 h-3 mr-1" />
-                    Nova Etapa
+                  <Button type="button" onClick={handleAddStep} variant="ghost" size="sm" className="h-8 text-xs text-[#DEAE60] hover:text-[#DEAE60] hover:bg-[#DEAE60]/10">
+                    <Plus className="w-3 h-3 mr-1" /> Nova Etapa
                   </Button>
                 </div>
-
                 <div className="space-y-4">
                   {formData.etapas.map((etapa, idx) => (
                     <div key={etapa.id} className="p-4 bg-neutral-950/40 rounded-xl border border-neutral-800/60 space-y-4">
                       <div className="flex items-center gap-3">
-                        <span className="text-xs font-black text-neutral-600 bg-neutral-900 px-3 py-2 rounded-md">
-                          #{idx + 1}
-                        </span>
+                        <span className="text-xs font-black text-neutral-600 bg-neutral-900 px-3 py-2 rounded-md">#{idx + 1}</span>
                         <div className="flex-1">
-                          <Input
-                            placeholder="Nome da etapa (ex: Modelo, Aplicação de Cerâmica)"
-                            value={etapa.nome}
-                            onChange={(e) => handleStepChange(etapa.id, "nome", e.target.value)}
-                            className={`${inputBaseStyle} h-10`}
-                          />
+                          <Input placeholder="Nome da etapa (ex: Modelo, Aplicação de Cerâmica)" value={etapa.nome} onChange={(e) => handleStepChange(etapa.id, "nome", e.target.value)} className={`${inputBaseStyle} h-10`} />
                         </div>
-                        <Button
-                          type="button"
-                          onClick={() => handleRemoveStep(etapa.id)}
-                          variant="ghost"
-                          className="h-10 w-10 p-0 text-neutral-500 hover:text-red-400 hover:bg-red-400/10 shrink-0"
-                          disabled={formData.etapas.length === 1}
-                        >
+                        <Button type="button" onClick={() => handleRemoveStep(etapa.id)} variant="ghost" className="h-10 w-10 p-0 text-neutral-500 hover:text-red-400 hover:bg-red-400/10 shrink-0" disabled={formData.etapas.length === 1}>
                           <Trash2 className="w-5 h-5" />
                         </Button>
                       </div>
                       <div className="pl-[3.25rem]">
-                        <Textarea
-                          placeholder="Instruções ou detalhes do que deve ser feito nesta etapa específica..."
-                          value={etapa.descricao}
-                          onChange={(e) => handleStepChange(etapa.id, "descricao", e.target.value)}
-                          rows={2}
-                          className={`${inputBaseStyle} text-sm`}
-                        />
+                        <Textarea placeholder="Instruções ou detalhes do que deve ser feito nesta etapa específica..." value={etapa.descricao} onChange={(e) => handleStepChange(etapa.id, "descricao", e.target.value)} rows={2} className={`${inputBaseStyle} text-sm`} />
                       </div>
                     </div>
                   ))}
@@ -423,31 +363,14 @@ export default function NewService() {
               {/* Informações Financeiras */}
               <div className="border-t border-neutral-800/50 pt-8">
                 <h2 className="text-sm font-black text-[#DEAE60] uppercase tracking-widest mb-4">Financeiro & Custos</h2>
-                
                 <div className="space-y-6">
-                  
-                  {/* Grid de Valor Bruto e Forma de Pagamento */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-2">
-                      <Label htmlFor="grossValue" className="text-xs font-bold text-neutral-400 uppercase">
-                        Valor Cobrado (Bruto - R$)
-                      </Label>
-                      <Input
-                        id="grossValue"
-                        name="grossValue"
-                        type="number"
-                        placeholder="0.00"
-                        step="0.01"
-                        value={formData.grossValue}
-                        onChange={handleChange}
-                        className={`${inputBaseStyle} text-[#DEAE60] font-bold text-lg h-12`}
-                      />
+                      <Label htmlFor="grossValue" className="text-xs font-bold text-neutral-400 uppercase">Valor Cobrado (Bruto - R$)</Label>
+                      <Input id="grossValue" name="grossValue" type="number" placeholder="0.00" step="0.01" value={formData.grossValue} onChange={handleChange} className={`${inputBaseStyle} text-[#DEAE60] font-bold text-lg h-12`} />
                     </div>
-                    
                     <div className="space-y-2">
-                      <Label htmlFor="paymentMethod" className="text-xs font-bold text-neutral-400 uppercase">
-                        Forma de Pagamento
-                      </Label>
+                      <Label htmlFor="paymentMethod" className="text-xs font-bold text-neutral-400 uppercase">Forma de Pagamento</Label>
                       <Select value={formData.paymentMethod} onValueChange={(value) => handleSelectChange("paymentMethod", value)}>
                         <SelectTrigger className="bg-neutral-900 border-neutral-800 text-white focus:ring-1 focus:ring-[#DEAE60]/50 h-12">
                           <SelectValue placeholder="Selecione o pagamento" />
@@ -465,45 +388,19 @@ export default function NewService() {
                   <div className="space-y-4 bg-neutral-950/50 p-6 rounded-xl border border-neutral-800/50">
                     <div className="flex items-center justify-between mb-2">
                       <Label className="text-xs font-bold text-neutral-400 uppercase">Custos Operacionais</Label>
-                      <Button
-                        type="button"
-                        onClick={handleAddCost}
-                        variant="ghost"
-                        size="sm"
-                        className="h-8 text-xs text-[#DEAE60] hover:text-[#DEAE60] hover:bg-[#DEAE60]/10"
-                      >
-                        <Plus className="w-3 h-3 mr-1" />
-                        Novo Custo
+                      <Button type="button" onClick={handleAddCost} variant="ghost" size="sm" className="h-8 text-xs text-[#DEAE60] hover:text-[#DEAE60] hover:bg-[#DEAE60]/10">
+                        <Plus className="w-3 h-3 mr-1" /> Novo Custo
                       </Button>
                     </div>
-
                     {formData.costs.map((cost) => (
                       <div key={cost.id} className="flex items-start gap-4">
                         <div className="flex-1 space-y-1">
-                          <Input
-                            placeholder="Refere-se a (ex: Motoboy, Resina)"
-                            value={cost.name}
-                            onChange={(e) => handleCostChange(cost.id, "name", e.target.value)}
-                            className={`${inputBaseStyle} h-10 text-sm`}
-                          />
+                          <Input placeholder="Refere-se a (ex: Motoboy, Resina)" value={cost.name} onChange={(e) => handleCostChange(cost.id, "name", e.target.value)} className={`${inputBaseStyle} h-10 text-sm`} />
                         </div>
                         <div className="w-1/3 space-y-1">
-                          <Input
-                            type="number"
-                            step="0.01"
-                            placeholder="Valor (R$)"
-                            value={cost.value}
-                            onChange={(e) => handleCostChange(cost.id, "value", e.target.value)}
-                            className={`${inputBaseStyle} h-10 text-sm text-red-400 font-bold`}
-                          />
+                          <Input type="number" step="0.01" placeholder="Valor (R$)" value={cost.value} onChange={(e) => handleCostChange(cost.id, "value", e.target.value)} className={`${inputBaseStyle} h-10 text-sm text-red-400 font-bold`} />
                         </div>
-                        <Button
-                          type="button"
-                          onClick={() => handleRemoveCost(cost.id)}
-                          variant="ghost"
-                          className="h-10 w-10 p-0 text-neutral-500 hover:text-red-400 hover:bg-red-400/10 shrink-0"
-                          disabled={formData.costs.length === 1}
-                        >
+                        <Button type="button" onClick={() => handleRemoveCost(cost.id)} variant="ghost" className="h-10 w-10 p-0 text-neutral-500 hover:text-red-400 hover:bg-red-400/10 shrink-0" disabled={formData.costs.length === 1}>
                           <Trash2 className="w-5 h-5" />
                         </Button>
                       </div>
@@ -514,19 +411,11 @@ export default function NewService() {
 
               {/* Botões */}
               <div className="flex gap-4 pt-8 border-t border-neutral-800/50">
-                <Button
-                  type="button"
-                  onClick={() => setLocation("/services")}
-                  className="bg-neutral-800 hover:bg-neutral-700 text-white font-bold rounded-lg px-8 h-12"
-                >
+                <Button type="button" onClick={() => setLocation("/services")} className="bg-neutral-800 hover:bg-neutral-700 text-white font-bold rounded-lg px-8 h-12">
                   Cancelar
                 </Button>
-                <Button
-                  type="submit"
-                  disabled={loading}
-                  className="flex-1 bg-[#DEAE60] hover:bg-[#DEAE60]/90 text-neutral-950 font-black rounded-lg uppercase tracking-tight h-12"
-                >
-                  {loading ? "Registrando..." : "Registrar Serviço"}
+                <Button type="submit" disabled={loading} className="flex-1 bg-[#DEAE60] hover:bg-[#DEAE60]/90 text-neutral-950 font-black rounded-lg uppercase tracking-tight h-12">
+                  {loading ? "A registar..." : "Registar Serviço"}
                 </Button>
               </div>
             </form>
@@ -537,23 +426,16 @@ export default function NewService() {
         <div className="space-y-6">
           <Card className="bg-neutral-900/80 border-neutral-800 p-6 shadow-xl sticky top-6">
             <h3 className="font-bold text-white uppercase mb-6 flex items-center gap-2">
-              <span className="w-2 h-2 bg-[#DEAE60] rounded-full"></span>
-              Resumo Financeiro
+              <span className="w-2 h-2 bg-[#DEAE60] rounded-full"></span> Resumo Financeiro
             </h3>
-            
             <div className="space-y-6">
               <div>
                 <p className="text-neutral-400 text-xs font-bold uppercase tracking-wider mb-2">Valor Bruto</p>
-                <p className="text-3xl font-black text-white">
-                  R$ {grossValue.toFixed(2).replace(".", ",")}
-                </p>
+                <p className="text-3xl font-black text-white">R$ {grossValue.toFixed(2).replace(".", ",")}</p>
               </div>
-              
               <div className="border-t border-neutral-800/50 pt-6">
                 <p className="text-neutral-400 text-xs font-bold uppercase tracking-wider mb-2">Custos Totais</p>
-                <p className="text-2xl font-bold text-red-400">
-                  - R$ {totalOperationCost.toFixed(2).replace(".", ",")}
-                </p>
+                <p className="text-2xl font-bold text-red-400">- R$ {totalOperationCost.toFixed(2).replace(".", ",")}</p>
                 {formData.costs.some(c => c.name || c.value) && (
                   <div className="mt-4 space-y-2">
                     {formData.costs.map((cost, idx) => cost.name && (
@@ -565,7 +447,6 @@ export default function NewService() {
                   </div>
                 )}
               </div>
-              
               <div className="border-t border-neutral-800 pt-6 bg-[#DEAE60]/10 p-6 rounded-xl mt-6">
                 <p className="text-[#DEAE60]/80 text-xs font-bold uppercase tracking-wider mb-2">Lucro Líquido</p>
                 <p className={`text-4xl font-black ${netProfit >= 0 ? "text-[#DEAE60]" : "text-red-400"}`}>
