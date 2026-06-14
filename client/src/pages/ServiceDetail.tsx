@@ -387,29 +387,64 @@ export default function ServiceDetail() {
         {/* Sidebar - Informações Financeiras & Ações */}
         <div className="space-y-6">
           
-          {/* Status Geral */}
+{/* Status Geral e Data de Finalização */}
           <Card className="bg-neutral-900 border-neutral-800 p-6 shadow-xl">
             <h2 className="text-xs font-black text-[#DEAE60] uppercase tracking-widest mb-4">Status do Serviço</h2>
             {editing ? (
-              <Select value={service.status} onValueChange={(value) => handleFieldChange("status", value)}>
-                <SelectTrigger className="bg-neutral-900 border-neutral-800 text-white focus:ring-1 focus:ring-[#DEAE60]/50">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="bg-neutral-900 border-neutral-800">
-                  <SelectItem value="Pendente">Pendente</SelectItem>
-                  <SelectItem value="Em Andamento">Em Andamento</SelectItem>
-                  <SelectItem value="Finalizado">Finalizado</SelectItem>
-                  <SelectItem value="Cancelado">Cancelado</SelectItem>
-                </SelectContent>
-              </Select>
+              <div className="space-y-4">
+                <Select 
+                  value={service.status} 
+                  onValueChange={(value) => {
+                    setService(prev => {
+                      if (!prev) return null;
+                      const updates: any = { status: value };
+                      // Auto-preenche a data de hoje se mudar para finalizado
+                      if (value === "Finalizado" && !prev.completedAt) {
+                        updates.completedAt = new Date().toISOString().split("T")[0];
+                      }
+                      return { ...prev, ...updates };
+                    });
+                  }}
+                >
+                  <SelectTrigger className="bg-neutral-900 border-neutral-800 text-white focus:ring-1 focus:ring-[#DEAE60]/50">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-neutral-900 border-neutral-800">
+                    <SelectItem value="Pendente">Pendente</SelectItem>
+                    <SelectItem value="Em Andamento">Em Andamento</SelectItem>
+                    <SelectItem value="Finalizado">Finalizado</SelectItem>
+                    <SelectItem value="Cancelado">Cancelado</SelectItem>
+                  </SelectContent>
+                </Select>
+
+                {/* Aparece apenas se o status for finalizado */}
+                {service.status === "Finalizado" && (
+                  <div className="pt-2 border-t border-neutral-800/50">
+                    <Label className="text-xs font-bold text-neutral-400 uppercase">Data de Finalização</Label>
+                    <Input
+                      type="date"
+                      value={service.completedAt || ""}
+                      onChange={(e) => handleFieldChange("completedAt", e.target.value)}
+                      className={`${inputBaseStyle} mt-2`}
+                    />
+                  </div>
+                )}
+              </div>
             ) : (
-              <div className={`inline-block px-4 py-2 rounded-full text-sm font-bold ${
-                service.status === "Em Andamento" ? "bg-blue-500/20 text-blue-300" :
-                service.status === "Pendente" ? "bg-amber-500/20 text-amber-300" :
-                service.status === "Finalizado" ? "bg-green-500/20 text-green-300" :
-                "bg-red-500/20 text-red-300"
-              }`}>
-                {service.status}
+              <div className="space-y-4">
+                <div className={`inline-block px-4 py-2 rounded-full text-sm font-bold ${
+                  service.status === "Em Andamento" ? "bg-blue-500/20 text-blue-300" :
+                  service.status === "Pendente" ? "bg-amber-500/20 text-amber-300" :
+                  service.status === "Finalizado" ? "bg-green-500/20 text-green-300" :
+                  "bg-red-500/20 text-red-300"
+                }`}>
+                  {service.status}
+                </div>
+                {service.status === "Finalizado" && service.completedAt && (
+                  <div className="text-xs text-neutral-400 font-bold">
+                    Entregue em: {new Date(service.completedAt + "T00:00:00").toLocaleDateString("pt-BR")}
+                  </div>
+                )}
               </div>
             )}
           </Card>
