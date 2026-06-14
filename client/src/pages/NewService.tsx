@@ -33,6 +33,7 @@ interface ServiceFormData {
   procedure: string;
   description: string;
   grossValue: string;
+  paymentMethod: string; // Novo: Forma de pagamento
   priority: string;
   dueDate: string;
   costs: Cost[];
@@ -51,6 +52,7 @@ export default function NewService() {
     procedure: "",
     description: "",
     grossValue: "",
+    paymentMethod: "", // Inicializa vazio
     priority: "normal",
     dueDate: "",
     costs: [{ id: Date.now(), name: "", value: "" }],
@@ -136,6 +138,7 @@ export default function NewService() {
         prioridade: formData.priority,
         prazo_entrega: formData.dueDate,
         valor_bruto: grossValue,
+        forma_pagamento: formData.paymentMethod, // Envia a forma de pagamento
         custo_operacional: totalOperationCost,
         resumo_trabalho: formData.patientNotes,
         observacoes: formData.dentistNotes,
@@ -422,20 +425,41 @@ export default function NewService() {
                 <h2 className="text-sm font-black text-[#DEAE60] uppercase tracking-widest mb-4">Financeiro & Custos</h2>
                 
                 <div className="space-y-6">
-                  <div className="space-y-2 w-full md:w-1/2">
-                    <Label htmlFor="grossValue" className="text-xs font-bold text-neutral-400 uppercase">
-                      Valor Cobrado (Bruto - R$)
-                    </Label>
-                    <Input
-                      id="grossValue"
-                      name="grossValue"
-                      type="number"
-                      placeholder="0.00"
-                      step="0.01"
-                      value={formData.grossValue}
-                      onChange={handleChange}
-                      className={`${inputBaseStyle} text-[#DEAE60] font-bold text-lg h-12`}
-                    />
+                  
+                  {/* Grid de Valor Bruto e Forma de Pagamento */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                      <Label htmlFor="grossValue" className="text-xs font-bold text-neutral-400 uppercase">
+                        Valor Cobrado (Bruto - R$)
+                      </Label>
+                      <Input
+                        id="grossValue"
+                        name="grossValue"
+                        type="number"
+                        placeholder="0.00"
+                        step="0.01"
+                        value={formData.grossValue}
+                        onChange={handleChange}
+                        className={`${inputBaseStyle} text-[#DEAE60] font-bold text-lg h-12`}
+                      />
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor="paymentMethod" className="text-xs font-bold text-neutral-400 uppercase">
+                        Forma de Pagamento
+                      </Label>
+                      <Select value={formData.paymentMethod} onValueChange={(value) => handleSelectChange("paymentMethod", value)}>
+                        <SelectTrigger className="bg-neutral-900 border-neutral-800 text-white focus:ring-1 focus:ring-[#DEAE60]/50 h-12">
+                          <SelectValue placeholder="Selecione o pagamento" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-neutral-900 border-neutral-800">
+                          <SelectItem value="Pix">Pix</SelectItem>
+                          <SelectItem value="Crédito">Cartão de Crédito</SelectItem>
+                          <SelectItem value="Débito">Cartão de Débito</SelectItem>
+                          <SelectItem value="Dinheiro">Dinheiro</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
 
                   <div className="space-y-4 bg-neutral-950/50 p-6 rounded-xl border border-neutral-800/50">
