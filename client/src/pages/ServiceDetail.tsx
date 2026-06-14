@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import api from "../lib/api";
 import { useLocation, useRoute } from "wouter";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -31,26 +32,38 @@ export default function ServiceDetail() {
   const [match, params] = useRoute("/services/:id");
   const serviceId = params?.id;
 
-  const [service, setService] = useState<ServiceData>({
-    id: serviceId || "1",
-    patient: "João Silva",
-    dentist: "Dr. Carlos",
-    procedure: "Prótese Total Superior",
-    description: "Prótese total superior com resina acrílica, dentes de porcelana",
-    status: "in_progress",
-    grossValue: 1200,
-    operationCost: 350,
-    stages: [
-      { id: "1", name: "Moldagem", status: "completed", completedAt: "2024-06-05" },
-      { id: "2", name: "Processamento", status: "in_progress" },
-      { id: "3", name: "Acabamento", status: "pending" },
-      { id: "4", name: "Entrega", status: "pending" },
-    ],
-    createdAt: "2024-06-05",
-  });
+  const [service, setService] = useState<ServiceData | null>(null);
 
   const [editing, setEditing] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchService = async () => {
+      if (!serviceId) return;
+      try {
+        const response = await api.get(`/trabalhos/${serviceId}`);
+        const fetchedService = response.data;
+        setService({
+          id: fetchedService.id,
+          patient: fetchedService.paciente_nome,
+          dentist: fetchedService.dentista_nome,
+          procedure: fetchedService.procedimento,
+          description: fetchedService.observacoes || "",
+          status: fetchedService.status,
+          grossValue: fetchedService.valor_bruto,
+          operationCost: fetchedService.custo_operacional || 0,
+          stages: fetchedService.etapas || [], // Assumindo que o backend retorna 'etapas'
+          createdAt: new Date(fetchedService.data_entrada).toLocaleDateString("pt-BR"),
+        });
+      } catch (error) {
+        console.error("Erro ao buscar detalhes do serviço:", error);
+        toast.error("Erro ao carregar detalhes do serviço.");
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchService();
+  }, [serviceId]);
 
   const handleStageStatusChange = (stageId: string, newStatus: string) => {
     setService((prev) => ({
@@ -70,7 +83,17 @@ export default function ServiceDetail() {
   const handleSave = async () => {
     setLoading(true);
     try {
-      console.log("Serviço atualizado:", service);
+      if (!service) return;
+      await api.put(`/trabalhos/${service.id}`, {
+        paciente_nome: service.patient,
+        dentista_nome: service.dentist,
+        procedimento: service.procedure,
+        observacoes: service.description,
+        status: service.status,
+        valor_bruto: service.grossValue,
+        custo_operacional: service.operationCost,
+        etapas: service.stages, // Enviar etapas de volta ao backend
+      });
       toast.success("Serviço atualizado com sucesso!");
       setEditing(false);
     } catch (error) {
@@ -95,8 +118,16 @@ export default function ServiceDetail() {
     }
   };
 
+  if (loading) {
+    return <div className="min-h-screen bg-neutral-950 p-6 text-white">Carregando serviço...</div>;
+  }
+
+  if (!service) {
+    return <div className="min-h-screen bg-neutral-950 p-6 text-white">Serviço não encontrado.</div>;
+  }
+
   const lucroLiquido = service.grossValue - service.operationCost;
-  const margemLucro = ((lucroLiquido / service.grossValue) * 100).toFixed(1);
+  const margemLucro = service.grossValue > 0 ? ((lucroLiquido / service.grossValue) * 100).toFixed(1) : "0.0";
 
   return (
     <div className="min-h-screen bg-neutral-950 p-6">
