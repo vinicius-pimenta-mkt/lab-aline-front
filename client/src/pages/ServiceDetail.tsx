@@ -5,10 +5,10 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label"; // <-- AQUI ESTÁ A IMPORTAÇÃO CORRIGIDA
+import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { ArrowLeft, Download, Save, CheckCircle2, Clock, AlertCircle, Plus, Trash2, Layers, Calendar } from "lucide-react";
+import { ArrowLeft, Download, Save, CheckCircle2, Clock, AlertCircle, Plus, Trash2, Layers, Calendar, CreditCard } from "lucide-react";
 
 interface Stage {
   id: any;
@@ -26,6 +26,7 @@ interface ServiceData {
   status: string;
   prioridade: string;
   prazo_entrega: string;
+  forma_pagamento: string; // Novo campo
   grossValue: number;
   operationCost: number;
   stages: Stage[];
@@ -56,6 +57,7 @@ export default function ServiceDetail() {
           status: fetched.status,
           prioridade: fetched.prioridade || "normal",
           prazo_entrega: fetched.prazo_entrega ? fetched.prazo_entrega.split("T")[0] : "",
+          forma_pagamento: fetched.forma_pagamento || "", // Puxando do BD
           grossValue: fetched.valor_bruto,
           operationCost: fetched.custo_operacional || 0,
           stages: fetched.etapas || [],
@@ -120,9 +122,10 @@ export default function ServiceDetail() {
         status: service.status,
         prioridade: service.prioridade,
         prazo_entrega: service.prazo_entrega,
+        forma_pagamento: service.forma_pagamento, // Enviando pro BD
         valor_bruto: service.grossValue,
         custo_operacional: service.operationCost,
-        etapas: service.stages, // Envia as etapas com nomes e descrições para o backend atualizar
+        etapas: service.stages,
       });
       toast.success("Serviço atualizado com sucesso!");
       setEditing(false);
@@ -415,18 +418,46 @@ export default function ServiceDetail() {
           <Card className="bg-neutral-900 border-neutral-800 p-6 shadow-xl">
             <h2 className="text-xs font-black text-white uppercase tracking-widest mb-6">Resumo Financeiro</h2>
             <div className="space-y-6">
+              
+              {/* Forma de Pagamento */}
+              <div className="bg-neutral-950/50 p-4 rounded-lg border border-neutral-800/50 mb-2">
+                <p className="text-neutral-400 text-xs font-bold uppercase tracking-wider mb-2">Forma de Pagamento</p>
+                {editing ? (
+                  <Select value={service.forma_pagamento} onValueChange={(value) => handleFieldChange("forma_pagamento", value)}>
+                    <SelectTrigger className="bg-neutral-900 border-neutral-800 text-white focus:ring-1 focus:ring-[#DEAE60]/50 h-10">
+                      <SelectValue placeholder="Selecione o pagamento..." />
+                    </SelectTrigger>
+                    <SelectContent className="bg-neutral-900 border-neutral-800">
+                      <SelectItem value="Pix">Pix</SelectItem>
+                      <SelectItem value="Crédito">Cartão de Crédito</SelectItem>
+                      <SelectItem value="Débito">Cartão de Débito</SelectItem>
+                      <SelectItem value="Dinheiro">Dinheiro</SelectItem>
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <CreditCard className="w-4 h-4 text-neutral-400" />
+                    <p className="text-white font-bold text-sm">
+                      {service.forma_pagamento || "Não informada"}
+                    </p>
+                  </div>
+                )}
+              </div>
+
               <div>
                 <p className="text-neutral-400 text-xs font-bold uppercase tracking-wider mb-2">Valor Bruto</p>
                 <p className="text-3xl font-black text-white">
                   R$ {service.grossValue.toFixed(2).replace(".", ",")}
                 </p>
               </div>
+              
               <div className="border-t border-neutral-800/50 pt-6">
                 <p className="text-neutral-400 text-xs font-bold uppercase tracking-wider mb-2">Custos da Operação</p>
                 <p className="text-2xl font-bold text-red-400">
                   -R$ {service.operationCost.toFixed(2).replace(".", ",")}
                 </p>
               </div>
+              
               <div className="border-t border-neutral-800 pt-6 bg-[#DEAE60]/10 p-6 rounded-xl mt-6">
                 <p className="text-[#DEAE60]/80 text-xs font-bold uppercase tracking-wider mb-2">Lucro Líquido</p>
                 <p className="text-4xl font-black text-[#DEAE60]">
