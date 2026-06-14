@@ -74,6 +74,11 @@ export default function NewService() {
     }));
   };
 
+  // Cálculos Financeiros em tempo real
+  const grossValue = parseFloat(formData.grossValue) || 0;
+  const totalOperationCost = formData.costs.reduce((acc, curr) => acc + (parseFloat(curr.value) || 0), 0);
+  const netProfit = grossValue - totalOperationCost;
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -85,18 +90,16 @@ export default function NewService() {
         return;
       }
 
-      // IMPORTANTE: O back-end exige paciente_id e dentista_id. 
-      // Como não temos busca de ID ainda, estamos enviando um ID mockado e agrupando as descrições.
+      // Enviando os dados reais e limpos diretamente para o novo back-end inteligente
       await api.post("/trabalhos", {
-        paciente_id: 1, // Temporário: O back-end exige um ID numérico válido
-        dentista_id: 1, // Temporário: O back-end exige um ID numérico válido
-        descricao: formData.description || "Sem descrição", // Campo obrigatório no back-end
+        paciente_nome: formData.patientName,
+        dentista_nome: formData.dentistName,
         procedimento: formData.procedure,
+        descricao: formData.description || "Sem descrição complementar",
         valor_bruto: parseFloat(formData.grossValue) || 0,
-        resumo_trabalho: formData.patientNotes, // Usando o novo campo "Sobre o caso"
-        observacoes: formData.dentistNotes, // Usando o novo campo "Sobre a solicitação"
-        // Nota: Para salvar os custos no banco, será necessário fazer POSTs separados 
-        // para a rota de /custos utilizando o ID do trabalho retornado aqui.
+        custo_operacional: totalOperationCost, // Envia a soma exata de todos os custos dinâmicos criados
+        resumo_trabalho: formData.patientNotes, // Salva o campo "Sobre o caso"
+        observacoes: formData.dentistNotes,     // Salva o campo "Sobre a solicitação"
       });
       
       toast.success("Serviço registrado com sucesso!");
@@ -108,11 +111,6 @@ export default function NewService() {
       setLoading(false);
     }
   };
-
-  // Cálculos Financeiros
-  const grossValue = parseFloat(formData.grossValue) || 0;
-  const totalOperationCost = formData.costs.reduce((acc, curr) => acc + (parseFloat(curr.value) || 0), 0);
-  const netProfit = grossValue - totalOperationCost;
 
   // Estilo padrão para inputs com borda mais fina (ring reduzido e cor ajustada)
   const inputBaseStyle = "bg-neutral-900 border-neutral-800 text-white placeholder-neutral-600 focus-visible:ring-1 focus-visible:ring-[#DEAE60]/50 focus-visible:border-[#DEAE60]/50 transition-all";
@@ -253,7 +251,6 @@ export default function NewService() {
                       onChange={handleChange}
                       className={inputBaseStyle}
                     />
-                    {/* Datalist cria o efeito de autocompletar nativo sem travar a digitação livre */}
                     <datalist id="procedure-options">
                       <option value="Coroa Unitária" />
                       <option value="Ponte Fixa" />
