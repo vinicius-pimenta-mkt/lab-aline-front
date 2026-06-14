@@ -19,8 +19,8 @@ function ProtectedRoute({ component: Component }: { component: React.ComponentTy
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const user = localStorage.getItem("user");
-    if (user) {
+    const token = localStorage.getItem("token");
+    if (token) {
       setIsAuthenticated(true);
     } else {
       setLocation("/login");
