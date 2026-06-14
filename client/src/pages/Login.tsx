@@ -1,4 +1,5 @@
 import { useState } from "react";
+import api from "../lib/api";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,23 +16,20 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const handleLogin = async (e: React.FormEvent) => {
+    const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError("");
 
     try {
-      // Simulação de login - será integrado com backend
-      if (username && password) {
-        // Armazenar token/sessão
-        localStorage.setItem("user", JSON.stringify({ username }));
-        toast.success("Login realizado com sucesso!");
-        setLocation("/dashboard");
-      } else {
-        setError("Preencha todos os campos");
-      }
-    } catch (err) {
-      setError("Erro ao fazer login");
+      const response = await api.post("/auth/login", { username, password });
+      const { token, user: userData } = response.data;
+      localStorage.setItem("token", token);
+      localStorage.setItem("user", JSON.stringify(userData));
+      toast.success("Login realizado com sucesso!");
+      setLocation("/dashboard");
+    } catch (err: any) {
+      setError(err.response?.data?.error || "Erro ao fazer login");
     } finally {
       setLoading(false);
     }
