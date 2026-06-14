@@ -3,15 +3,17 @@ import api from "../lib/api";
 import { useLocation, useRoute } from "wouter";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { ArrowLeft, Download, Save, CheckCircle2, Clock, AlertCircle } from "lucide-react";
+import { ArrowLeft, Download, Save, CheckCircle2, Clock, AlertCircle, Plus, Trash2, Layers, Calendar } from "lucide-react";
 
 interface Stage {
-  id: string;
-  name: string;
+  id: any;
+  nome: string;
+  descricao: string;
   status: "pending" | "in_progress" | "completed";
-  completedAt?: string;
 }
 
 interface ServiceData {
@@ -21,6 +23,8 @@ interface ServiceData {
   procedure: string;
   description: string;
   status: string;
+  prioridade: string;
+  prazo_entrega: string;
   grossValue: number;
   operationCost: number;
   stages: Stage[];
@@ -29,11 +33,10 @@ interface ServiceData {
 
 export default function ServiceDetail() {
   const [, setLocation] = useLocation();
-  const [match, params] = useRoute("/services/:id");
+  const [, params] = useRoute("/services/:id");
   const serviceId = params?.id;
 
   const [service, setService] = useState<ServiceData | null>(null);
-
   const [editing, setEditing] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -42,21 +45,22 @@ export default function ServiceDetail() {
       if (!serviceId) return;
       try {
         const response = await api.get(`/trabalhos/${serviceId}`);
-        const fetchedService = response.data;
+        const fetched = response.data;
         setService({
-          id: fetchedService.id,
-          patient: fetchedService.paciente_nome,
-          dentist: fetchedService.dentista_nome,
-          procedure: fetchedService.procedimento,
-          description: fetchedService.observacoes || "",
-          status: fetchedService.status,
-          grossValue: fetchedService.valor_bruto,
-          operationCost: fetchedService.custo_operacional || 0,
-          stages: fetchedService.etapas || [], // Assumindo que o backend retorna 'etapas'
-          createdAt: new Date(fetchedService.data_entrada).toLocaleDateString("pt-BR"),
+          id: fetched.id,
+          patient: fetched.paciente_nome,
+          dentist: fetched.dentista_nome,
+          procedure: fetched.procedimento,
+          description: fetched.descricao || "",
+          status: fetched.status,
+          prioridade: fetched.prioridade || "normal",
+          prazo_entrega: fetched.prazo_entrega ? fetched.prazo_entrega.split("T")[0] : "",
+          grossValue: fetched.valor_bruto,
+          operationCost: fetched.custo_operacional || 0,
+          stages: fetched.etapas || [],
+          createdAt: fetched.data_entrada ? new Date(fetched.data_entrada).toLocaleDateString("pt-BR") : "",
         });
       } catch (error) {
-        console.error("Erro ao buscar detalhes do serviço:", error);
         toast.error("Erro ao carregar detalhes do serviço.");
       } finally {
         setLoading(false);
@@ -65,34 +69,59 @@ export default function ServiceDetail() {
     fetchService();
   }, [serviceId]);
 
-  const handleStageStatusChange = (stageId: string, newStatus: string) => {
-    setService((prev) => ({
-      ...prev,
-      stages: prev.stages.map((stage) =>
-        stage.id === stageId
-          ? {
-              ...stage,
-              status: newStatus as "pending" | "in_progress" | "completed",
-              completedAt: newStatus === "completed" ? new Date().toISOString().split("T")[0] : undefined,
-            }
-          : stage
-      ),
-    }));
+  // Edição de Campos Gerais
+  const handleFieldChange = (field: keyof ServiceData, value: any) => {
+    setService((prev) => (prev ? { ...prev, [field]: value } : null));
   };
 
+  // Gerenciamento Dinâmico de Etapas
+  const handleStageChange = (id: any, field: keyof Stage, value: string) => {
+    setService((prev) =>
+      prev
+        ? {
+            ...prev,
+            stages: prev.stages.map((s) => (s.id === id ? { ...s, [field]: value } : s)),
+          }
+        : null
+    );
+  };
+
+  const handleAddStage = () => {
+    setService((prev) =>
+      prev
+        ? {
+            ...prev,
+            stages: [...prev.stages, { id: `new-${Date.now()}`, nome: "", descricao: "", status: "pending" }],
+          }
+        : null
+    );
+  };
+
+  const handleRemoveStage = (id: any) => {
+    setService((prev) =>
+      prev
+        ? {
+            ...prev,
+            stages: prev.stages.filter((s) => s.id !== id),
+          }
+        : null
+    );
+  };
+
+  // Salvar no Back-end
   const handleSave = async () => {
+    if (!service) return;
     setLoading(true);
     try {
-      if (!service) return;
       await api.put(`/trabalhos/${service.id}`, {
-        paciente_nome: service.patient,
-        dentista_nome: service.dentist,
         procedimento: service.procedure,
-        observacoes: service.description,
+        descricao: service.description,
         status: service.status,
+        prioridade: service.prioridade,
+        prazo_entrega: service.prazo_entrega,
         valor_bruto: service.grossValue,
         custo_operacional: service.operationCost,
-        etapas: service.stages, // Enviar etapas de volta ao backend
+        etapas: service.stages, // Envia as etapas com nomes e descrições para o backend atualizar
       });
       toast.success("Serviço atualizado com sucesso!");
       setEditing(false);
@@ -118,16 +147,18 @@ export default function ServiceDetail() {
     }
   };
 
-  if (loading) {
-    return <div className="min-h-screen bg-neutral-950 p-6 text-white">Carregando serviço...</div>;
+  if (loading && !service) {
+    return <div className="min-h-screen bg-neutral-950 p-6 text-white flex items-center justify-center">Carregando detalhes do serviço...</div>;
   }
 
   if (!service) {
-    return <div className="min-h-screen bg-neutral-950 p-6 text-white">Serviço não encontrado.</div>;
+    return <div className="min-h-screen bg-neutral-950 p-6 text-white flex items-center justify-center">Serviço não encontrado.</div>;
   }
 
   const lucroLiquido = service.grossValue - service.operationCost;
   const margemLucro = service.grossValue > 0 ? ((lucroLiquido / service.grossValue) * 100).toFixed(1) : "0.0";
+
+  const inputBaseStyle = "bg-neutral-900 border-neutral-800 text-white placeholder-neutral-600 focus-visible:ring-1 focus-visible:ring-[#DEAE60]/50 focus-visible:border-[#DEAE60]/50 transition-all";
 
   return (
     <div className="min-h-screen bg-neutral-950 p-6">
@@ -162,7 +193,7 @@ export default function ServiceDetail() {
               onClick={() => setEditing(true)}
               className="bg-[#DEAE60] hover:bg-[#DEAE60]/90 text-neutral-950 font-bold rounded-lg"
             >
-              Editar
+              Editar Caso
             </Button>
           )}
         </div>
@@ -171,70 +202,177 @@ export default function ServiceDetail() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Conteúdo Principal */}
         <div className="lg:col-span-2 space-y-6">
+          
           {/* Informações Básicas */}
-          <Card className="bg-neutral-900 border-neutral-800 p-6">
-            <h2 className="text-lg font-bold text-white uppercase mb-6">Informações do Serviço</h2>
+          <Card className="bg-neutral-900 border-neutral-800 p-8 shadow-xl">
+            <h2 className="text-sm font-black text-[#DEAE60] uppercase tracking-widest mb-6">Informações do Serviço</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <p className="text-neutral-400 text-sm">Paciente</p>
-                <p className="text-white font-bold mt-2">{service.patient}</p>
+              
+              <div className="space-y-2">
+                <Label className="text-xs font-bold text-neutral-400 uppercase">Prazo de Entrega</Label>
+                {editing ? (
+                  <Input
+                    type="date"
+                    value={service.prazo_entrega}
+                    onChange={(e) => handleFieldChange("prazo_entrega", e.target.value)}
+                    className={inputBaseStyle}
+                  />
+                ) : (
+                  <div className="flex items-center gap-2 mt-2">
+                    <Calendar className="w-4 h-4 text-neutral-500" />
+                    <p className="text-white font-bold">
+                      {service.prazo_entrega ? new Date(service.prazo_entrega + "T00:00:00").toLocaleDateString("pt-BR") : "Não definido"}
+                    </p>
+                  </div>
+                )}
               </div>
-              <div>
-                <p className="text-neutral-400 text-sm">Dentista</p>
-                <p className="text-white font-bold mt-2">{service.dentist}</p>
+
+              <div className="space-y-2">
+                <Label className="text-xs font-bold text-neutral-400 uppercase">Prioridade</Label>
+                {editing ? (
+                  <Select value={service.prioridade} onValueChange={(value) => handleFieldChange("prioridade", value)}>
+                    <SelectTrigger className="bg-neutral-900 border-neutral-800 text-white focus:ring-1 focus:ring-[#DEAE60]/50">
+                      <SelectValue placeholder="Selecione a prioridade" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-neutral-900 border-neutral-800">
+                      <SelectItem value="normal">Normal</SelectItem>
+                      <SelectItem value="urgente">Urgente ⚠️</SelectItem>
+                      <SelectItem value="vip">Estojo VIP ⭐</SelectItem>
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <p className="text-white font-bold mt-2 uppercase text-sm">
+                    {service.prioridade === 'urgente' ? "⚠️ Urgente" : service.prioridade === 'vip' ? "⭐ VIP" : "Normal"}
+                  </p>
+                )}
               </div>
-              <div>
-                <p className="text-neutral-400 text-sm">Procedimento</p>
-                <p className="text-white font-bold mt-2">{service.procedure}</p>
+
+              <div className="space-y-2">
+                <Label className="text-xs font-bold text-neutral-400 uppercase">Procedimento</Label>
+                {editing ? (
+                  <Input
+                    value={service.procedure}
+                    onChange={(e) => handleFieldChange("procedure", e.target.value)}
+                    className={inputBaseStyle}
+                  />
+                ) : (
+                  <p className="text-white font-bold mt-2">{service.procedure}</p>
+                )}
               </div>
-              <div>
-                <p className="text-neutral-400 text-sm">Data de Criação</p>
+
+              <div className="space-y-2">
+                <Label className="text-xs font-bold text-neutral-400 uppercase">Data de Criação</Label>
                 <p className="text-white font-bold mt-2">{service.createdAt}</p>
               </div>
-              <div className="md:col-span-2">
-                <p className="text-neutral-400 text-sm">Descrição</p>
-                <p className="text-neutral-300 mt-2">{service.description}</p>
+
+              <div className="md:col-span-2 space-y-2 border-t border-neutral-800/50 pt-4">
+                <Label className="text-xs font-bold text-neutral-400 uppercase">Descrição do Trabalho</Label>
+                {editing ? (
+                  <Textarea
+                    value={service.description}
+                    onChange={(e) => handleFieldChange("description", e.target.value)}
+                    rows={3}
+                    className={inputBaseStyle}
+                  />
+                ) : (
+                  <p className="text-neutral-300 mt-2 text-sm leading-relaxed">{service.description || "Nenhuma descrição detalhada."}</p>
+                )}
               </div>
             </div>
           </Card>
 
           {/* Etapas do Procedimento */}
-          <Card className="bg-neutral-900 border-neutral-800 p-6">
-            <h2 className="text-lg font-bold text-white uppercase mb-6">Etapas do Procedimento</h2>
+          <Card className="bg-neutral-900 border-neutral-800 p-8 shadow-xl">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-sm font-black text-[#DEAE60] uppercase tracking-widest flex items-center gap-2">
+                <Layers className="w-5 h-5" /> Etapas do Procedimento
+              </h2>
+              {editing && (
+                <Button
+                  type="button"
+                  onClick={handleAddStage}
+                  variant="ghost"
+                  size="sm"
+                  className="text-xs text-[#DEAE60] hover:bg-[#DEAE60]/10"
+                >
+                  <Plus className="w-3 h-3 mr-1" />
+                  Nova Etapa
+                </Button>
+              )}
+            </div>
+
             <div className="space-y-4">
+              {service.stages.length === 0 && !editing && (
+                <p className="text-neutral-500 text-sm italic">Nenhuma etapa registrada para este serviço.</p>
+              )}
+
               {service.stages.map((stage, idx) => (
-                <div key={stage.id} className="flex items-start gap-4 pb-4 border-b border-neutral-800 last:border-0">
-                  <div className="mt-1">{getStageIcon(stage.status)}</div>
-                  <div className="flex-1">
-                    <div className="flex items-center justify-between mb-2">
-                      <h3 className="font-bold text-white">{stage.name}</h3>
-                      {editing ? (
-                        <Select
-                          value={stage.status}
-                          onValueChange={(value) => handleStageStatusChange(stage.id, value)}
+                <div key={stage.id} className="flex items-start gap-4 pb-6 border-b border-neutral-800/50 last:border-0 last:pb-0">
+                  <div className="mt-2 shrink-0">{getStageIcon(stage.status)}</div>
+                  
+                  <div className="flex-1 space-y-3">
+                    <div className="flex flex-col md:flex-row md:items-center gap-3">
+                      <div className="flex-1">
+                        {editing ? (
+                          <Input
+                            placeholder="Nome da etapa"
+                            value={stage.nome}
+                            onChange={(e) => handleStageChange(stage.id, "nome", e.target.value)}
+                            className={inputBaseStyle}
+                          />
+                        ) : (
+                          <h3 className="font-bold text-white text-base">{stage.nome || "Etapa sem nome"}</h3>
+                        )}
+                      </div>
+                      
+                      <div className="w-full md:w-48">
+                        {editing ? (
+                          <Select
+                            value={stage.status}
+                            onValueChange={(value) => handleStageChange(stage.id, "status", value as "pending" | "in_progress" | "completed")}
+                          >
+                            <SelectTrigger className="bg-neutral-900 border-neutral-800 text-white focus:ring-1 focus:ring-[#DEAE60]/50">
+                              <SelectValue placeholder="Status" />
+                            </SelectTrigger>
+                            <SelectContent className="bg-neutral-900 border-neutral-800">
+                              <SelectItem value="pending">Pendente</SelectItem>
+                              <SelectItem value="in_progress">Em Andamento</SelectItem>
+                              <SelectItem value="completed">Concluída</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        ) : (
+                          <span className="text-xs font-bold uppercase text-neutral-400">
+                            {stage.status === 'completed' ? '✓ Concluída' : stage.status === 'in_progress' ? '⏳ Em andamento' : '○ Pendente'}
+                          </span>
+                        )}
+                      </div>
+
+                      {editing && (
+                        <Button
+                          type="button"
+                          onClick={() => handleRemoveStage(stage.id)}
+                          variant="ghost"
+                          className="h-10 w-10 p-0 text-neutral-500 hover:text-red-400 shrink-0"
+                          disabled={service.stages.length === 1}
                         >
-                          <SelectTrigger className="w-40 bg-neutral-800 border-neutral-700 text-white">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent className="bg-neutral-800 border-neutral-700">
-                            <SelectItem value="pending">Pendente</SelectItem>
-                            <SelectItem value="in_progress">Em Andamento</SelectItem>
-                            <SelectItem value="completed">Concluído</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      ) : (
-                        <span className="text-sm text-neutral-400">
-                          {stage.status === "completed" && "✓ Concluído"}
-                          {stage.status === "in_progress" && "⏳ Em Andamento"}
-                          {stage.status === "pending" && "○ Pendente"}
-                        </span>
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
                       )}
                     </div>
-                    {stage.completedAt && (
-                      <p className="text-sm text-neutral-500">
-                        Concluído em: {stage.completedAt}
-                      </p>
-                    )}
+                    
+                    <div>
+                      {editing ? (
+                        <Textarea
+                          placeholder="Descrição da etapa..."
+                          value={stage.descricao}
+                          onChange={(e) => handleStageChange(stage.id, "descricao", e.target.value)}
+                          rows={2}
+                          className={`${inputBaseStyle} text-sm`}
+                        />
+                      ) : (
+                        stage.descricao && <p className="text-sm text-neutral-400 leading-relaxed">{stage.descricao}</p>
+                      )}
+                    </div>
                   </div>
                 </div>
               ))}
@@ -242,82 +380,80 @@ export default function ServiceDetail() {
           </Card>
         </div>
 
-        {/* Sidebar - Informações Financeiras */}
+        {/* Sidebar - Informações Financeiras & Ações */}
         <div className="space-y-6">
+          
+          {/* Status Geral */}
+          <Card className="bg-neutral-900 border-neutral-800 p-6 shadow-xl">
+            <h2 className="text-xs font-black text-[#DEAE60] uppercase tracking-widest mb-4">Status do Serviço</h2>
+            {editing ? (
+              <Select value={service.status} onValueChange={(value) => handleFieldChange("status", value)}>
+                <SelectTrigger className="bg-neutral-900 border-neutral-800 text-white focus:ring-1 focus:ring-[#DEAE60]/50">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-neutral-900 border-neutral-800">
+                  <SelectItem value="Pendente">Pendente</SelectItem>
+                  <SelectItem value="Em Andamento">Em Andamento</SelectItem>
+                  <SelectItem value="Finalizado">Finalizado</SelectItem>
+                  <SelectItem value="Cancelado">Cancelado</SelectItem>
+                </SelectContent>
+              </Select>
+            ) : (
+              <div className={`inline-block px-4 py-2 rounded-full text-sm font-bold ${
+                service.status === "Em Andamento" ? "bg-blue-500/20 text-blue-300" :
+                service.status === "Pendente" ? "bg-amber-500/20 text-amber-300" :
+                service.status === "Finalizado" ? "bg-green-500/20 text-green-300" :
+                "bg-red-500/20 text-red-300"
+              }`}>
+                {service.status}
+              </div>
+            )}
+          </Card>
+
           {/* KPI Financeiro */}
-          <Card className="bg-neutral-900 border-neutral-800 p-6">
-            <h2 className="text-lg font-bold text-white uppercase mb-6">Resumo Financeiro</h2>
-            <div className="space-y-4">
+          <Card className="bg-neutral-900 border-neutral-800 p-6 shadow-xl">
+            <h2 className="text-xs font-black text-white uppercase tracking-widest mb-6">Resumo Financeiro</h2>
+            <div className="space-y-6">
               <div>
-                <p className="text-neutral-400 text-sm">Valor Bruto</p>
-                <p className="text-2xl font-bold text-white mt-2">
+                <p className="text-neutral-400 text-xs font-bold uppercase tracking-wider mb-2">Valor Bruto</p>
+                <p className="text-3xl font-black text-white">
                   R$ {service.grossValue.toFixed(2).replace(".", ",")}
                 </p>
               </div>
-              <div className="border-t border-neutral-800 pt-4">
-                <p className="text-neutral-400 text-sm">Custo da Operação</p>
-                <p className="text-2xl font-bold text-red-400 mt-2">
+              <div className="border-t border-neutral-800/50 pt-6">
+                <p className="text-neutral-400 text-xs font-bold uppercase tracking-wider mb-2">Custos da Operação</p>
+                <p className="text-2xl font-bold text-red-400">
                   -R$ {service.operationCost.toFixed(2).replace(".", ",")}
                 </p>
               </div>
-              <div className="border-t border-neutral-800 pt-4 bg-[#DEAE60]/10 p-4 rounded-lg">
-                <p className="text-neutral-400 text-sm">Lucro Líquido</p>
-                <p className="text-2xl font-bold text-[#DEAE60] mt-2">
+              <div className="border-t border-neutral-800 pt-6 bg-[#DEAE60]/10 p-6 rounded-xl mt-6">
+                <p className="text-[#DEAE60]/80 text-xs font-bold uppercase tracking-wider mb-2">Lucro Líquido</p>
+                <p className="text-4xl font-black text-[#DEAE60]">
                   R$ {lucroLiquido.toFixed(2).replace(".", ",")}
                 </p>
-                <p className="text-xs text-neutral-400 mt-2">
+                <p className="text-xs font-bold text-neutral-400 mt-3">
                   Margem: {margemLucro}%
                 </p>
               </div>
             </div>
           </Card>
 
-          {/* Status */}
-          <Card className="bg-neutral-900 border-neutral-800 p-6">
-            <h2 className="text-lg font-bold text-white uppercase mb-4">Status</h2>
-            {editing ? (
-              <Select value={service.status} onValueChange={(value) => setService({ ...service, status: value })}>
-                <SelectTrigger className="bg-neutral-800 border-neutral-700 text-white">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="bg-neutral-800 border-neutral-700">
-                  <SelectItem value="pending">Pendente</SelectItem>
-                  <SelectItem value="in_progress">Em Andamento</SelectItem>
-                  <SelectItem value="completed">Finalizado</SelectItem>
-                  <SelectItem value="cancelled">Cancelado</SelectItem>
-                </SelectContent>
-              </Select>
-            ) : (
-              <div className={`inline-block px-4 py-2 rounded-full text-sm font-bold ${
-                service.status === "in_progress" ? "bg-blue-500/20 text-blue-300" :
-                service.status === "pending" ? "bg-amber-500/20 text-amber-300" :
-                service.status === "completed" ? "bg-green-500/20 text-green-300" :
-                "bg-red-500/20 text-red-300"
-              }`}>
-                {service.status === "in_progress" && "Em Andamento"}
-                {service.status === "pending" && "Pendente"}
-                {service.status === "completed" && "Finalizado"}
-                {service.status === "cancelled" && "Cancelado"}
-              </div>
-            )}
-          </Card>
-
-          {/* Botões de Ação */}
+          {/* Botões de Ação na Edição */}
           {editing && (
-            <div className="flex gap-3">
+            <div className="flex gap-4 sticky top-6">
               <Button
                 onClick={() => setEditing(false)}
-                className="flex-1 bg-neutral-800 hover:bg-neutral-700 text-white font-bold rounded-lg"
+                className="flex-1 bg-neutral-800 hover:bg-neutral-700 text-white font-bold rounded-lg h-12"
               >
                 Cancelar
               </Button>
               <Button
                 onClick={handleSave}
                 disabled={loading}
-                className="flex-1 bg-[#DEAE60] hover:bg-[#DEAE60]/90 text-neutral-950 font-bold rounded-lg flex items-center justify-center gap-2"
+                className="flex-1 bg-[#DEAE60] hover:bg-[#DEAE60]/90 text-neutral-950 font-black rounded-lg uppercase tracking-tight h-12 flex items-center justify-center gap-2"
               >
-                <Save className="w-4 h-4" />
-                {loading ? "Salvando..." : "Salvar"}
+                <Save className="w-5 h-5" />
+                {loading ? "Salvando..." : "Salvar Caso"}
               </Button>
             </div>
           )}
