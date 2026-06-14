@@ -5,6 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label"; // <-- AQUI ESTÁ A IMPORTAÇÃO CORRIGIDA
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { ArrowLeft, Download, Save, CheckCircle2, Clock, AlertCircle, Plus, Trash2, Layers, Calendar } from "lucide-react";
