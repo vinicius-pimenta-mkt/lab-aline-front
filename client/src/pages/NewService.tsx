@@ -1,4 +1,5 @@
 import { useState } from "react";
+import api from "../lib/api";
 import { useLocation } from "wouter";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -57,7 +58,15 @@ export default function NewService() {
         return;
       }
 
-      console.log("Serviço criado:", formData);
+      await api.post("/trabalhos", {
+        paciente_nome: formData.patientName,
+        dentista_nome: formData.dentistName,
+        procedimento: formData.procedure,
+        observacoes: formData.description,
+        valor_bruto: parseFloat(formData.grossValue) || 0,
+        custo_operacional: parseFloat(formData.operationCost) || 0,
+        status: formData.status,
+      });
       toast.success("Serviço registrado com sucesso!");
       setLocation("/services");
     } catch (error) {
