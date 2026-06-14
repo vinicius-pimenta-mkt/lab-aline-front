@@ -1,9 +1,11 @@
 import { useState, useEffect } from "react";
+import api from "../lib/api";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Download } from "lucide-react";
+import { Download, CreditCard, PieChart as PieChartIcon } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
+import { toast } from "sonner";
 
 interface CompletedService {
   id: string;
@@ -14,6 +16,7 @@ interface CompletedService {
   operationCost: number;
   netProfit: number;
   completedAt: string;
+  forma_pagamento: string;
 }
 
 interface MonthlyData {
@@ -24,108 +27,78 @@ interface MonthlyData {
 }
 
 export default function Reports() {
+  const [loading, setLoading] = useState(true);
   const [completedServices, setCompletedServices] = useState<CompletedService[]>([]);
   const [monthlyData, setMonthlyData] = useState<MonthlyData[]>([]);
-  const [selectedMonth, setSelectedMonth] = useState("2024-06");
+  const [costsDistribution, setCostsDistribution] = useState<{name: string, value: number}[]>([]);
+  const [paymentMethods, setPaymentMethods] = useState<{name: string, value: number}[]>([]);
+  
   const [totalRevenue, setTotalRevenue] = useState(0);
   const [totalCost, setTotalCost] = useState(0);
   const [totalProfit, setTotalProfit] = useState(0);
+  const [selectedMonth, setSelectedMonth] = useState("");
+
+  const formatMonthLabel = (monthStr: string) => {
+    if (!monthStr) return "";
+    const [year, month] = monthStr.split('-');
+    const months = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+    return `${months[parseInt(month) - 1]}/${year}`;
+  };
 
   useEffect(() => {
-    const mockCompletedServices: CompletedService[] = [
-      {
-        id: "1",
-        patient: "Maria Santos",
-        dentist: "Dra. Ana",
-        procedure: "Coroa Unitária",
-        grossValue: 450,
-        operationCost: 120,
-        netProfit: 330,
-        completedAt: "2024-06-06",
-      },
-      {
-        id: "2",
-        patient: "Lucas Ferreira",
-        dentist: "Dr. Roberto",
-        procedure: "Prótese Parcial",
-        grossValue: 950,
-        operationCost: 280,
-        netProfit: 670,
-        completedAt: "2024-06-04",
-      },
-      {
-        id: "3",
-        patient: "Carla Mendes",
-        dentist: "Dra. Beatriz",
-        procedure: "Ponte Fixa",
-        grossValue: 800,
-        operationCost: 250,
-        netProfit: 550,
-        completedAt: "2024-06-03",
-      },
-      {
-        id: "4",
-        patient: "Ricardo Alves",
-        dentist: "Dr. Felipe",
-        procedure: "Coroa sobre Implante",
-        grossValue: 600,
-        operationCost: 180,
-        netProfit: 420,
-        completedAt: "2024-06-02",
-      },
-      {
-        id: "5",
-        patient: "Juliana Costa",
-        dentist: "Dr. Carlos",
-        procedure: "Prótese Total",
-        grossValue: 1200,
-        operationCost: 350,
-        netProfit: 850,
-        completedAt: "2024-06-01",
-      },
-    ];
+    const fetchReports = async () => {
+      try {
+        const response = await api.get("/relatorios/completo");
+        const data = response.data;
 
-    const mockMonthlyData: MonthlyData[] = [
-      { month: "Janeiro", revenue: 8500, cost: 2400, profit: 6100 },
-      { month: "Fevereiro", revenue: 9200, cost: 2600, profit: 6600 },
-      { month: "Março", revenue: 8800, cost: 2500, profit: 6300 },
-      { month: "Abril", revenue: 10200, cost: 2900, profit: 7300 },
-      { month: "Maio", revenue: 9800, cost: 2800, profit: 7000 },
-      { month: "Junho", revenue: 5000, cost: 1400, profit: 3600 },
-    ];
+        setCompletedServices(data.completedServices);
+        
+        // Formata o mês para o gráfico de barras
+        const formattedMonthlyData = data.monthlyData.map((d: any) => ({
+          ...d,
+          month: formatMonthLabel(d.month)
+        }));
+        setMonthlyData(formattedMonthlyData);
+        
+        setCostsDistribution(data.costsDistribution);
+        setPaymentMethods(data.paymentMethods);
 
-    setCompletedServices(mockCompletedServices);
-    setMonthlyData(mockMonthlyData);
+        setTotalRevenue(data.totals.revenue);
+        setTotalCost(data.totals.cost);
+        setTotalProfit(data.totals.profit);
 
-    const total = mockCompletedServices.reduce(
-      (acc, service) => ({
-        revenue: acc.revenue + service.grossValue,
-        cost: acc.cost + service.operationCost,
-        profit: acc.profit + service.netProfit,
-      }),
-      { revenue: 0, cost: 0, profit: 0 }
-    );
+      } catch (error) {
+        console.error("Erro ao carregar relatórios", error);
+        toast.error("Falha ao carregar os dados dos relatórios.");
+      } finally {
+        setLoading(false);
+      }
+    };
 
-    setTotalRevenue(total.revenue);
-    setTotalCost(total.cost);
-    setTotalProfit(total.profit);
+    fetchReports();
   }, []);
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat("pt-BR", {
       style: "currency",
       currency: "BRL",
-    }).format(value);
+    }).format(value || 0);
   };
 
   const profitMargin = totalRevenue > 0 ? ((totalProfit / totalRevenue) * 100).toFixed(1) : "0";
 
+  // Montando os dados da Pizza: O Lucro fica na frente com a cor verde, seguido de cada custo real registrado.
   const pieData = [
-    { name: "Lucro", value: totalProfit },
-    { name: "Custo", value: totalCost },
+    { name: "Lucro Líquido", value: totalProfit, isProfit: true },
+    ...costsDistribution.map(c => ({ name: c.name, value: c.value, isProfit: false }))
   ];
 
-  const COLORS = ["#DEAE60", "#EF4444"];
+  // Cores: Verde vivo para lucro. Paleta de vermelhos, laranjas e amarelos para os custos
+  const COST_COLORS = ["#EF4444", "#F97316", "#F59E0B", "#EAB308", "#F43F5E", "#FB923C", "#A8A29E"];
+
+  if (loading) {
+    return <div className="min-h-screen bg-neutral-950 p-6 text-white flex items-center justify-center">Analisando relatórios financeiros...</div>;
+  }
 
   return (
     <div className="min-h-screen bg-neutral-950 p-6">
@@ -143,124 +116,147 @@ export default function Reports() {
         </Button>
       </div>
 
-      {/* KPIs */}
+      {/* KPIs Principais */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <Card className="bg-neutral-900 border-neutral-800 p-6">
+        <Card className="bg-neutral-900 border-neutral-800 p-6 shadow-xl">
           <p className="text-neutral-400 text-xs font-bold uppercase tracking-widest mb-2">Receita Total</p>
           <p className="text-3xl font-black text-blue-400">{formatCurrency(totalRevenue)}</p>
         </Card>
-        <Card className="bg-neutral-900 border-neutral-800 p-6">
-          <p className="text-neutral-400 text-xs font-bold uppercase tracking-widest mb-2">Custo Total</p>
+        <Card className="bg-neutral-900 border-neutral-800 p-6 shadow-xl">
+          <p className="text-neutral-400 text-xs font-bold uppercase tracking-widest mb-2">Custo Operacional Total</p>
           <p className="text-3xl font-black text-red-400">{formatCurrency(totalCost)}</p>
         </Card>
-        <Card className="bg-neutral-900 border-neutral-800 p-6">
-          <p className="text-neutral-400 text-xs font-bold uppercase tracking-widest mb-2">Lucro Líquido</p>
-          <p className="text-3xl font-black text-[#DEAE60]">{formatCurrency(totalProfit)}</p>
+        <Card className="bg-neutral-900 border-neutral-800 p-6 shadow-xl relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-16 h-16 bg-[#DEAE60]/10 rounded-bl-full z-0" />
+          <p className="text-neutral-400 text-xs font-bold uppercase tracking-widest mb-2 relative z-10">Lucro Líquido</p>
+          <p className="text-3xl font-black text-[#DEAE60] relative z-10">{formatCurrency(totalProfit)}</p>
         </Card>
-        <Card className="bg-neutral-900 border-neutral-800 p-6">
+        <Card className="bg-neutral-900 border-neutral-800 p-6 shadow-xl">
           <p className="text-neutral-400 text-xs font-bold uppercase tracking-widest mb-2">Margem de Lucro</p>
           <p className="text-3xl font-black text-green-400">{profitMargin}%</p>
         </Card>
       </div>
 
-      {/* Gráficos */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-        {/* Gráfico de Barras */}
-        <Card className="lg:col-span-2 bg-neutral-900 border-neutral-800 p-6">
-          <h2 className="text-lg font-bold text-white uppercase mb-6">Receita vs Custo (Mensal)</h2>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={monthlyData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#404040" />
-              <XAxis dataKey="month" stroke="#737373" />
-              <YAxis stroke="#737373" />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: "#262626",
-                  border: "1px solid #404040",
-                  borderRadius: "0.5rem",
-                  color: "#fff",
-                }}
-                formatter={(value) => formatCurrency(value as number)}
-              />
-              <Legend />
-              <Bar dataKey="revenue" fill="#3B82F6" name="Receita" radius={[8, 8, 0, 0]} />
-              <Bar dataKey="cost" fill="#EF4444" name="Custo" radius={[8, 8, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </Card>
-
-        {/* Gráfico de Pizza */}
-        <Card className="bg-neutral-900 border-neutral-800 p-6">
-          <h2 className="text-lg font-bold text-white uppercase mb-6">Distribuição</h2>
-          <ResponsiveContainer width="100%" height={300}>
+      {/* Gráficos de Composição Financeira */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        
+        {/* Gráfico de Distribuição Real (Pizza) */}
+        <Card className="bg-neutral-900 border-neutral-800 p-6 shadow-xl">
+          <h2 className="text-sm font-black text-[#DEAE60] uppercase tracking-widest mb-6 flex items-center gap-2">
+            <PieChartIcon className="w-5 h-5"/> Distribuição de Lucro e Custos Detalhados
+          </h2>
+          <ResponsiveContainer width="100%" height={320}>
             <PieChart>
               <Pie
                 data={pieData}
                 cx="50%"
                 cy="50%"
-                labelLine={false}
-                label={({ name, value }) => `${name}: ${formatCurrency(value)}`}
-                outerRadius={80}
-                fill="#8884d8"
+                labelLine={true}
+                label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
+                outerRadius={100}
+                innerRadius={60}
                 dataKey="value"
+                stroke="#171717"
+                strokeWidth={2}
               >
                 {pieData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  <Cell 
+                    key={`cell-${index}`} 
+                    fill={entry.isProfit ? "#22C55E" : COST_COLORS[(index - 1) % COST_COLORS.length]} 
+                  />
                 ))}
               </Pie>
-              <Tooltip formatter={(value) => formatCurrency(value as number)} />
+              <Tooltip 
+                formatter={(value) => formatCurrency(value as number)}
+                contentStyle={{ backgroundColor: "#171717", borderColor: "#262626", color: "#fff", borderRadius: "8px" }} 
+              />
             </PieChart>
+          </ResponsiveContainer>
+        </Card>
+
+        {/* Gráfico de Formas de Pagamento (Barras Horizontais) */}
+        <Card className="bg-neutral-900 border-neutral-800 p-6 shadow-xl">
+          <h2 className="text-sm font-black text-[#DEAE60] uppercase tracking-widest mb-6 flex items-center gap-2">
+            <CreditCard className="w-5 h-5"/> Receita por Forma de Pagamento
+          </h2>
+          <ResponsiveContainer width="100%" height={320}>
+            <BarChart data={paymentMethods} layout="vertical" margin={{ left: 20, right: 20 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#262626" horizontal={true} vertical={false} />
+              <XAxis type="number" stroke="#737373" tickFormatter={(value) => `R$ ${value / 1000}k`} />
+              <YAxis dataKey="name" type="category" stroke="#a3a3a3" width={100} tick={{fontSize: 12, fontWeight: 'bold'}} />
+              <Tooltip 
+                formatter={(value) => formatCurrency(value as number)}
+                contentStyle={{ backgroundColor: "#171717", borderColor: "#262626", color: "#fff", borderRadius: "8px" }} 
+              />
+              <Bar dataKey="value" fill="#DEAE60" radius={[0, 4, 4, 0]} barSize={32}>
+                {paymentMethods.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={entry.name === 'Pix' ? '#10B981' : entry.name.includes('Crédito') ? '#3B82F6' : '#DEAE60'} />
+                ))}
+              </Bar>
+            </BarChart>
           </ResponsiveContainer>
         </Card>
       </div>
 
+      {/* Gráfico de Histórico Mensal */}
+      <Card className="bg-neutral-900 border-neutral-800 p-6 shadow-xl mb-8">
+        <h2 className="text-sm font-black text-[#DEAE60] uppercase tracking-widest mb-6">Histórico Receita vs Custo (Anual)</h2>
+        <ResponsiveContainer width="100%" height={300}>
+          <BarChart data={monthlyData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#262626" vertical={false} />
+            <XAxis dataKey="month" stroke="#737373" tick={{fontSize: 12}} />
+            <YAxis stroke="#737373" tickFormatter={(value) => `R$ ${value / 1000}k`} />
+            <Tooltip
+              contentStyle={{ backgroundColor: "#171717", border: "1px solid #262626", borderRadius: "8px", color: "#fff" }}
+              formatter={(value) => formatCurrency(value as number)}
+            />
+            <Legend wrapperStyle={{ paddingTop: "20px" }}/>
+            <Bar dataKey="revenue" fill="#3B82F6" name="Receita" radius={[4, 4, 0, 0]} />
+            <Bar dataKey="cost" fill="#EF4444" name="Custo Operacional" radius={[4, 4, 0, 0]} />
+            <Bar dataKey="profit" fill="#DEAE60" name="Lucro Líquido" radius={[4, 4, 0, 0]} />
+          </BarChart>
+        </ResponsiveContainer>
+      </Card>
+
       {/* Tabela de Serviços Finalizados */}
-      <Card className="bg-neutral-900 border-neutral-800 overflow-hidden">
-        <div className="p-6 border-b border-neutral-800 flex items-center justify-between">
-          <h2 className="text-lg font-bold text-white uppercase">Serviços Finalizados</h2>
-          <Input
-            type="month"
-            value={selectedMonth}
-            onChange={(e) => setSelectedMonth(e.target.value)}
-            className="w-40 bg-neutral-800 border-neutral-700 text-white"
-          />
+      <Card className="bg-neutral-900 border-neutral-800 overflow-hidden shadow-xl">
+        <div className="p-6 border-b border-neutral-800 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <h2 className="text-sm font-black text-[#DEAE60] uppercase tracking-widest">Extrato de Serviços Finalizados</h2>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-neutral-800 border-b border-neutral-700">
+            <thead className="bg-neutral-950 border-b border-neutral-800">
               <tr>
-                <th className="px-6 py-4 text-left text-sm font-bold text-neutral-300 uppercase">Paciente</th>
-                <th className="px-6 py-4 text-left text-sm font-bold text-neutral-300 uppercase">Dentista</th>
-                <th className="px-6 py-4 text-left text-sm font-bold text-neutral-300 uppercase">Procedimento</th>
-                <th className="px-6 py-4 text-right text-sm font-bold text-neutral-300 uppercase">Valor Bruto</th>
-                <th className="px-6 py-4 text-right text-sm font-bold text-neutral-300 uppercase">Custo</th>
-                <th className="px-6 py-4 text-right text-sm font-bold text-neutral-300 uppercase">Lucro Líquido</th>
-                <th className="px-6 py-4 text-left text-sm font-bold text-neutral-300 uppercase">Data</th>
+                <th className="px-6 py-4 text-left text-xs font-bold text-neutral-500 uppercase tracking-wider">Paciente</th>
+                <th className="px-6 py-4 text-left text-xs font-bold text-neutral-500 uppercase tracking-wider">Dentista</th>
+                <th className="px-6 py-4 text-left text-xs font-bold text-neutral-500 uppercase tracking-wider">Pagamento</th>
+                <th className="px-6 py-4 text-right text-xs font-bold text-neutral-500 uppercase tracking-wider">Valor Bruto</th>
+                <th className="px-6 py-4 text-right text-xs font-bold text-neutral-500 uppercase tracking-wider">Custo</th>
+                <th className="px-6 py-4 text-right text-xs font-bold text-neutral-500 uppercase tracking-wider">Lucro Líquido</th>
+                <th className="px-6 py-4 text-right text-xs font-bold text-neutral-500 uppercase tracking-wider">Finalizado em</th>
               </tr>
             </thead>
-            <tbody>
-              {completedServices.map((service, idx) => (
-                <tr
-                  key={service.id}
-                  className={`border-b border-neutral-800 hover:bg-neutral-800/50 transition-colors ${
-                    idx % 2 === 0 ? "bg-neutral-900" : "bg-neutral-800/30"
-                  }`}
-                >
+            <tbody className="divide-y divide-neutral-800/50">
+              {completedServices.map((service) => (
+                <tr key={service.id} className="hover:bg-neutral-800/30 transition-colors bg-neutral-900/50">
                   <td className="px-6 py-4 text-sm font-bold text-white">{service.patient}</td>
-                  <td className="px-6 py-4 text-sm text-neutral-300">{service.dentist}</td>
-                  <td className="px-6 py-4 text-sm text-neutral-300">{service.procedure}</td>
-                  <td className="px-6 py-4 text-sm font-bold text-blue-400 text-right">
-                    {formatCurrency(service.grossValue)}
+                  <td className="px-6 py-4 text-sm text-neutral-400">{service.dentist}</td>
+                  <td className="px-6 py-4 text-sm text-neutral-400">{service.forma_pagamento || "Não informado"}</td>
+                  <td className="px-6 py-4 text-sm font-bold text-blue-400 text-right">{formatCurrency(service.grossValue)}</td>
+                  <td className="px-6 py-4 text-sm font-bold text-red-400 text-right">-{formatCurrency(service.operationCost)}</td>
+                  <td className="px-6 py-4 text-sm font-black text-[#DEAE60] text-right">{formatCurrency(service.netProfit)}</td>
+                  <td className="px-6 py-4 text-sm text-neutral-500 text-right">
+                    {service.completedAt ? new Date(service.completedAt + "T00:00:00").toLocaleDateString("pt-BR") : "--"}
                   </td>
-                  <td className="px-6 py-4 text-sm font-bold text-red-400 text-right">
-                    -{formatCurrency(service.operationCost)}
-                  </td>
-                  <td className="px-6 py-4 text-sm font-bold text-[#DEAE60] text-right">
-                    {formatCurrency(service.netProfit)}
-                  </td>
-                  <td className="px-6 py-4 text-sm text-neutral-300">{service.completedAt}</td>
                 </tr>
               ))}
+              {completedServices.length === 0 && (
+                <tr>
+                  <td colSpan={7} className="px-6 py-12 text-center text-neutral-500 text-sm">
+                    Nenhum serviço finalizado registrado no banco de dados ainda.
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
