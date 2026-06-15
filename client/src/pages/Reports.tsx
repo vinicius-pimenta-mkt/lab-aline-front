@@ -50,17 +50,19 @@ export default function Reports() {
     const fetchReports = async () => {
       setLoading(true);
       try {
-        // Envia o período selecionado para a API
         const response = await api.get(`/relatorios/completo?periodo=${periodFilter}`);
-        const data = response.data;
+        const data = response.data || {}; // Garante que temos um objeto
 
-        setCompletedServices(data.completedServices);
-        setMonthlyData(data.monthlyData.map((d: any) => ({ ...d, month: formatMonthLabel(d.month) })));
-        setCostsDistribution(data.costsDistribution);
-        setPaymentMethods(data.paymentMethods);
-        setTotalRevenue(data.totals.revenue);
-        setTotalCost(data.totals.cost);
-        setTotalProfit(data.totals.profit);
+        // Proteção "|| []" adicionada para evitar TypeError do .map
+        setCompletedServices(data.completedServices || []);
+        setMonthlyData((data.monthlyData || []).map((d: any) => ({ ...d, month: formatMonthLabel(d.month) })));
+        setCostsDistribution(data.costsDistribution || []);
+        setPaymentMethods(data.paymentMethods || []);
+        
+        // Proteção de campos undefined para evitar o erro do toFixed
+        setTotalRevenue(data.totals?.revenue || 0);
+        setTotalCost(data.totals?.cost || 0);
+        setTotalProfit(data.totals?.profit || 0);
 
       } catch (error) {
         toast.error("Falha ao carregar os dados dos relatórios.");
@@ -70,12 +72,13 @@ export default function Reports() {
     };
 
     fetchReports();
-  }, [periodFilter]); // Recarrega sempre que o filtro mudar
+  }, [periodFilter]);
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value || 0);
   };
 
+  // Previne divisão por zero ou uso de undefined
   const profitMargin = totalRevenue > 0 ? ((totalProfit / totalRevenue) * 100).toFixed(1) : "0";
 
   const pieData = [
