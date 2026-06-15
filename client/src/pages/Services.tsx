@@ -22,18 +22,33 @@ export default function Services() {
       try {
         const response = await api.get("/trabalhos");
         
-        // BLINDAGEM 1: Garantir que nenhum campo venha como null ou undefined
-        const safeData = response.data.map((trabalho: any) => ({
-          id: trabalho.id,
-          paciente_nome: trabalho.paciente_nome || "Nome não registrado",
-          dentista_nome: trabalho.dentista_nome || "Nome não registrado",
-          procedimento: trabalho.procedimento || "Procedimento não especificado",
-          status: trabalho.status || "Pendente",
-          prioridade: trabalho.prioridade || "normal",
-          valor_bruto: Number(trabalho.valor_bruto) || 0,
-          prazo_entrega: trabalho.data_entrega || new Date().toISOString(),
-          dias_atraso: 0, 
-        }));
+        // BLINDAGEM 1: Garantir que nenhum campo venha como null e calcular atraso
+        const safeData = response.data.map((trabalho: any) => {
+          let atraso = 0;
+          // Calcula se o serviço está atrasado com base no prazo de entrega
+          if (trabalho.prazo_entrega && trabalho.status !== "Finalizado") {
+            const hoje = new Date();
+            hoje.setHours(0, 0, 0, 0);
+            const prazo = new Date(trabalho.prazo_entrega.includes('T') ? trabalho.prazo_entrega : trabalho.prazo_entrega + "T00:00:00");
+            prazo.setHours(0, 0, 0, 0);
+            
+            if (prazo < hoje) {
+              atraso = Math.floor((hoje.getTime() - prazo.getTime()) / (1000 * 60 * 60 * 24));
+            }
+          }
+
+          return {
+            id: trabalho.id,
+            paciente_nome: trabalho.paciente_nome || "Nome não registrado",
+            dentista_nome: trabalho.dentista_nome || "Nome não registrado",
+            procedimento: trabalho.procedimento || "Procedimento não especificado",
+            status: trabalho.status || "Pendente",
+            prioridade: trabalho.prioridade || "normal",
+            valor_bruto: Number(trabalho.valor_bruto) || 0,
+            prazo_entrega: trabalho.prazo_entrega || new Date().toISOString(),
+            dias_atraso: atraso, 
+          };
+        });
         
         setServices(safeData);
       } catch (error) {
@@ -67,7 +82,7 @@ export default function Services() {
     }
   };
 
-  // BLINDAGEM 2: Garantir que a pesquisa não quebre se o texto for vazio
+  // BLINDAGEM 2: Garantir que a pesquisa não quebre e filtre as datas corretamente
   let filteredServices = services.filter((service) => {
     const searchLower = searchTerm.toLowerCase();
     
@@ -84,7 +99,10 @@ export default function Services() {
       matchesView = service.dias_atraso > 0;
     } else if (viewFilter === "proximas") {
       const hoje = new Date();
-      const prazo = new Date(service.prazo_entrega);
+      hoje.setHours(0, 0, 0, 0);
+      const prazo = new Date(service.prazo_entrega.includes('T') ? service.prazo_entrega : service.prazo_entrega + "T00:00:00");
+      prazo.setHours(0, 0, 0, 0);
+      
       const proximaData = new Date(hoje);
       proximaData.setDate(hoje.getDate() + 7);
       matchesView = prazo <= proximaData && prazo >= hoje && service.status !== "Finalizado";
@@ -110,11 +128,12 @@ export default function Services() {
           className="bg-[#DEAE60] hover:bg-[#DEAE60]/90 text-neutral-950 font-bold rounded-lg flex items-center gap-2"
         >
           <Plus className="w-4 h-4" />
-          Novo Serviço
+          <span className="hidden sm:inline">Novo Serviço</span>
+          <span className="sm:hidden">Novo</span>
         </Button>
       </div>
 
-      {/* Filtros */}
+      {/* Filtros - Layout padronizado para mobile (w-full e h-10) */}
       <Card className="bg-neutral-900 border-neutral-800 p-6 mb-6">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
           <div className="relative">
@@ -123,15 +142,15 @@ export default function Services() {
               placeholder="Buscar paciente, dentista..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="bg-neutral-800 border-neutral-700 pl-10 text-white placeholder-neutral-500"
+              className="w-full h-10 bg-neutral-800 border-neutral-700 pl-10 text-white placeholder-neutral-500"
             />
           </div>
 
           <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="bg-neutral-800 border-neutral-700 text-white">
+            <SelectTrigger className="w-full h-10 bg-neutral-800 border-neutral-700 text-white">
               <SelectValue placeholder="Status" />
             </SelectTrigger>
-            <SelectContent className="bg-neutral-800 border-neutral-700">
+            <SelectContent className="bg-neutral-800 border-neutral-700 text-white">
               <SelectItem value="all">Todos os Status</SelectItem>
               <SelectItem value="Pendente">Pendente</SelectItem>
               <SelectItem value="Em Andamento">Em Andamento</SelectItem>
@@ -140,11 +159,11 @@ export default function Services() {
           </Select>
 
           <Select value={prioridadeFilter} onValueChange={setPrioridadeFilter}>
-            <SelectTrigger className="bg-neutral-800 border-neutral-700 text-white">
+            <SelectTrigger className="w-full h-10 bg-neutral-800 border-neutral-700 text-white">
               <SelectValue placeholder="Prioridade" />
             </SelectTrigger>
-            <SelectContent className="bg-neutral-800 border-neutral-700">
-              <SelectItem value="all">Todas</SelectItem>
+            <SelectContent className="bg-neutral-800 border-neutral-700 text-white">
+              <SelectItem value="all">Todas as Prioridades</SelectItem>
               <SelectItem value="normal">Normal</SelectItem>
               <SelectItem value="urgente">Urgente</SelectItem>
               <SelectItem value="vip">VIP</SelectItem>
@@ -152,17 +171,17 @@ export default function Services() {
           </Select>
 
           <Select value={viewFilter} onValueChange={setViewFilter}>
-            <SelectTrigger className="bg-neutral-800 border-neutral-700 text-white">
+            <SelectTrigger className="w-full h-10 bg-neutral-800 border-neutral-700 text-white">
               <SelectValue placeholder="Visualização" />
             </SelectTrigger>
-            <SelectContent className="bg-neutral-800 border-neutral-700">
-              <SelectItem value="todos">Todos</SelectItem>
+            <SelectContent className="bg-neutral-800 border-neutral-700 text-white">
+              <SelectItem value="todos">Todos os Períodos</SelectItem>
               <SelectItem value="atrasados">Atrasados</SelectItem>
               <SelectItem value="proximas">Próximas Entregas</SelectItem>
             </SelectContent>
           </Select>
 
-          <div className="flex items-center justify-center bg-neutral-800 rounded-lg px-4">
+          <div className="w-full h-10 flex items-center justify-center bg-neutral-800 rounded-lg px-4 border border-neutral-700">
             <span className="text-neutral-400 text-sm font-bold">
               {filteredServices.length} serviço{filteredServices.length !== 1 ? "s" : ""}
             </span>
@@ -173,9 +192,9 @@ export default function Services() {
       {/* Alertas */}
       {filteredServices.some((s) => s.dias_atraso > 0) && (
         <Card className="bg-red-500/10 border-red-500/30 p-4 mb-6 flex items-center gap-3">
-          <AlertCircle size={20} className="text-red-400" />
+          <AlertCircle size={20} className="text-red-400 shrink-0" />
           <span className="text-red-400 text-sm font-bold">
-            ⚠️ Você tem {filteredServices.filter((s) => s.dias_atraso > 0).length} serviço(s) atrasado(s)
+            ⚠️ Você tem {filteredServices.filter((s) => s.dias_atraso > 0).length} serviço(s) atrasado(s) neste filtro
           </span>
         </Card>
       )}
@@ -219,20 +238,20 @@ export default function Services() {
                   <td className="px-6 py-4 text-sm text-neutral-400">{service.dentista_nome}</td>
                   <td className="px-6 py-4 text-sm text-neutral-400">{service.procedimento}</td>
                   <td className="px-6 py-4 text-sm">
-                    <Badge className={`${getStatusColor(service.status)} border-0 font-bold`}>
+                    <Badge className={`${getStatusColor(service.status)} border-0 font-bold whitespace-nowrap`}>
                       {service.status}
                     </Badge>
                   </td>
                   <td className="px-6 py-4 text-sm">
-                    <Badge className={`${getPrioridadeColor(service.prioridade)} border-0 font-bold`}>
+                    <Badge className={`${getPrioridadeColor(service.prioridade)} border-0 font-bold whitespace-nowrap`}>
                       {service.prioridade.charAt(0).toUpperCase() + service.prioridade.slice(1)}
                     </Badge>
                   </td>
-                  <td className="px-6 py-4 text-sm font-black text-[#DEAE60]">R$ {service.valor_bruto.toFixed(2).replace(".", ",")}</td>
+                  <td className="px-6 py-4 text-sm font-black text-[#DEAE60] whitespace-nowrap">R$ {service.valor_bruto.toFixed(2).replace(".", ",")}</td>
                   <td className="px-6 py-4 text-sm">
                     <button
                       onClick={() => setLocation(`/services/${service.id}`)}
-                      className="text-[#DEAE60] hover:text-[#DEAE60]/80 font-bold transition-colors"
+                      className="text-[#DEAE60] hover:text-[#DEAE60]/80 font-bold transition-colors uppercase text-xs tracking-wider"
                     >
                       Ver
                     </button>
