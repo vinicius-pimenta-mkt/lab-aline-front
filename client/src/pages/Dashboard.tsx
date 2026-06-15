@@ -138,7 +138,7 @@ export default function Dashboard() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-neutral-950 p-6">
+    <div className="min-h-screen bg-transparent p-6">
       {/* Header */}
       <div className="mb-8">
         <h1 className="text-3xl font-black text-white uppercase tracking-tight">
