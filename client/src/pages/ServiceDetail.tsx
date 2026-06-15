@@ -178,7 +178,7 @@ export default function ServiceDetail() {
   };
 
   if (loading && !service) {
-    return <div className="min-h-screen bg-neutral-950 p-6 text-white flex items-center justify-center">Carregando detalhes do serviço...</div>;
+    return <div className="min-h-screen bg-transparent p-6 text-white flex items-center justify-center">Carregando detalhes do serviço...</div>;
   }
 
   if (!service) {
