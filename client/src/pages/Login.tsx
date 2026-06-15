@@ -36,7 +36,7 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-[100dvh] flex items-center justify-center relative p-4 sm:p-6 bg-neutral-950">
+    <div className="min-h-[100dvh] flex items-center justify-center relative p-4 sm:p-6 bg-transparent">
       <img 
         src="/alinefundo.png" 
         className="absolute inset-0 w-full h-full object-cover z-0 opacity-40" 
