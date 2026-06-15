@@ -65,9 +65,9 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           ${sidebarOpen ? "translate-x-0 w-64" : "-translate-x-full md:translate-x-0 w-64 md:w-20"}
         `}
       >
-        {/* Topo do Menu: Apresenta a Logo solta e sem fundo + Nome */}
+        {/* Topo do Menu: Logo mais próxima do nome */}
         <div className="p-4 border-b border-neutral-800 flex items-center justify-between h-16 shrink-0">
-          <div className="flex items-center gap-3 overflow-hidden">
+          <div className="flex items-center gap-1.5 overflow-hidden">
             <img 
               src="/logoaline.png" 
               alt="Logo Aline Antunes" 
@@ -129,16 +129,11 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       {/* Contentor de Visualização das Páginas Internas */}
       <div className="flex-1 flex flex-col h-screen overflow-hidden relative">
         
-        {/* Barra Superior - Renderizada em Dispositivos Móveis (Logo limpa e solta) */}
+        {/* Barra Superior - Renderizada em Dispositivos Móveis (Logo removida) */}
         {!isDesktop && (
           <div className="bg-neutral-900 border-b border-neutral-800 px-4 h-16 flex items-center justify-between z-30 shrink-0">
-            <div className="flex items-center gap-2.5">
-              <img 
-                src="/logoaline.png" 
-                alt="Logo" 
-                className="w-9 h-9 object-contain" 
-              />
-              <h1 className="font-black text-white tracking-wider text-xs uppercase">Aline Antunes</h1>
+            <div className="flex items-center">
+              <h1 className="font-black text-white tracking-wider text-sm uppercase">Aline Antunes</h1>
             </div>
             
             {/* Gatilho posicionado corretamente na extrema direita */}
