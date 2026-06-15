@@ -164,7 +164,7 @@ export default function NewService() {
   const inputBaseStyle = "bg-neutral-900 border-neutral-800 text-white placeholder-neutral-600 focus-visible:ring-1 focus-visible:ring-[#DEAE60]/50 focus-visible:border-[#DEAE60]/50 transition-all";
 
   return (
-    <div className="min-h-screen bg-neutral-950 p-6">
+    <div className="min-h-screen bg-transparent p-6">
       {/* Header */}
       <div className="flex items-center gap-4 mb-8">
         <button
