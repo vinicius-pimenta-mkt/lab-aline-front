@@ -87,7 +87,7 @@ export default function Reports() {
   const COST_COLORS = ["#EF4444", "#F97316", "#F59E0B", "#EAB308", "#F43F5E", "#FB923C", "#A8A29E"];
 
   return (
-    <div className="min-h-screen bg-neutral-950 p-6">
+    <div className="min-h-screen bg-transparent p-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
         <div>
           <h1 className="text-3xl font-black text-white uppercase tracking-tight">RELATÓRIOS & CAIXA</h1>
