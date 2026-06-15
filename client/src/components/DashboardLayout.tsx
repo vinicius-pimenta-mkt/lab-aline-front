@@ -13,12 +13,11 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const [isDesktop, setIsDesktop] = useState(true);
   const [, setLocation] = useLocation();
 
-  // Monitora o tamanho do ecrã para ajustar o comportamento inicial do menu
   useEffect(() => {
     const checkScreenSize = () => {
       const desktop = window.innerWidth >= 768;
       setIsDesktop(desktop);
-      setSidebarOpen(desktop); // Abre expandido no PC, inicia totalmente fechado no Mobile
+      setSidebarOpen(desktop);
     };
 
     checkScreenSize();
@@ -44,13 +43,23 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const handleNavigate = (href: string) => {
     setLocation(href);
     if (!isDesktop) {
-      setSidebarOpen(false); // Fecha o menu lateral automaticamente após clicar num item no telemóvel
+      setSidebarOpen(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-neutral-950 flex overflow-hidden">
+    <div className="min-h-screen bg-neutral-950 flex overflow-hidden relative">
       
+      {/* ========================================== */}
+      {/* IMAGEM DE FUNDO GLOBAL DO SISTEMA          */}
+      {/* ========================================== */}
+      <img 
+        src="/alinefundo.png" 
+        alt="Fundo do Sistema" 
+        className="absolute inset-0 w-full h-full object-cover z-0 opacity-30 pointer-events-none" 
+      />
+      <div className="absolute inset-0 bg-neutral-950/80 z-0 pointer-events-none" />
+
       {/* Sombra de fundo escura de sobreposição (exclusiva para telemóvel com menu aberto) */}
       {!isDesktop && sidebarOpen && (
         <div
@@ -59,17 +68,16 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         />
       )}
 
-      {/* Menu Lateral (Sidebar) */}
+      {/* Menu Lateral (Sidebar) com fundo translúcido para mesclar com o fundo */}
       <div
-        className={`fixed inset-y-0 left-0 h-screen z-50 bg-neutral-900 border-r border-neutral-800 flex flex-col transition-all duration-300 md:relative md:h-screen md:translate-x-0
+        className={`fixed inset-y-0 left-0 h-screen z-50 bg-neutral-900/90 backdrop-blur-md border-r border-neutral-800/50 flex flex-col transition-all duration-300 md:relative md:h-screen md:translate-x-0
           ${sidebarOpen ? "translate-x-0 w-64" : "-translate-x-full md:translate-x-0 w-64 md:w-20"}
         `}
       >
-        {/* Topo do Menu: Logo mais próxima do nome */}
-        <div className="p-4 border-b border-neutral-800 flex items-center justify-between h-16 shrink-0">
+        <div className="p-4 border-b border-neutral-800/50 flex items-center justify-between h-16 shrink-0">
           <div className="flex items-center gap-1.5 overflow-hidden">
             <img 
-              src="/logoaline.png" 
+              src="/logoaline.jpg" 
               alt="Logo Aline Antunes" 
               className="w-10 h-10 object-contain shrink-0" 
             />
@@ -80,16 +88,14 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             )}
           </div>
           
-          {/* Botão de alternar dinâmico: No PC colapsa para ícones, no Mobile fecha o painel */}
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="p-1.5 hover:bg-neutral-800 rounded-lg transition-colors text-neutral-400"
+            className="p-1.5 hover:bg-neutral-800/50 rounded-lg transition-colors text-neutral-400"
           >
             {sidebarOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
           </button>
         </div>
 
-        {/* Links do Menu */}
         <div className="flex-1 overflow-y-auto p-4">
           <p className={`text-[10px] font-bold text-neutral-500 uppercase tracking-widest mb-4 px-2 ${isDesktop && !sidebarOpen ? 'hidden' : 'block'}`}>
             Menu Principal
@@ -108,8 +114,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           </nav>
         </div>
 
-        {/* Rodapé do Menu (Dados do Utilizador Conectado) */}
-        <div className="border-t border-neutral-800 p-4 space-y-3 shrink-0">
+        <div className="border-t border-neutral-800/50 p-4 space-y-3 shrink-0">
           {(isDesktop ? sidebarOpen : true) && (
             <div className="px-3 py-2 bg-neutral-950/40 border border-neutral-800/60 rounded-lg">
               <p className="text-[9px] font-bold text-neutral-500 uppercase tracking-wider">Usuário</p>
@@ -126,28 +131,27 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         </div>
       </div>
 
-      {/* Contentor de Visualização das Páginas Internas */}
-      <div className="flex-1 flex flex-col h-screen overflow-hidden relative">
+      {/* Contentor Central (Z-10 para ficar por cima do fundo) */}
+      <div className="flex-1 flex flex-col h-screen overflow-hidden relative z-10">
         
-        {/* Barra Superior - Renderizada em Dispositivos Móveis (Logo removida) */}
+        {/* Barra Superior Mobile (Translúcida) */}
         {!isDesktop && (
-          <div className="bg-neutral-900 border-b border-neutral-800 px-4 h-16 flex items-center justify-between z-30 shrink-0">
+          <div className="bg-neutral-900/90 backdrop-blur-md border-b border-neutral-800/50 px-4 h-16 flex items-center justify-between z-30 shrink-0">
             <div className="flex items-center">
               <h1 className="font-black text-white tracking-wider text-sm uppercase">Aline Antunes</h1>
             </div>
             
-            {/* Gatilho posicionado corretamente na extrema direita */}
             <button
               onClick={() => setSidebarOpen(true)}
-              className="p-2 bg-neutral-800/40 hover:bg-neutral-800 rounded-xl transition-colors border border-neutral-800 text-[#DEAE60]"
+              className="p-2 bg-neutral-800/40 hover:bg-neutral-800/80 rounded-xl transition-colors border border-neutral-800/50 text-[#DEAE60]"
             >
               <Menu className="w-5 h-5" />
             </button>
           </div>
         )}
 
-        {/* Exibição da Página ativa */}
-        <div className="flex-1 overflow-auto bg-neutral-950">
+        {/* Fundo Trocado para Transparente Aqui para não ofuscar a imagem */}
+        <div className="flex-1 overflow-auto bg-transparent">
           {children}
         </div>
       </div>
