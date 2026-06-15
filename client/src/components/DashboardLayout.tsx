@@ -69,7 +69,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         <div className="p-4 border-b border-neutral-800 flex items-center justify-between h-16 shrink-0">
           <div className="flex items-center gap-3 overflow-hidden">
             <img 
-              src="/logoaline.jpg" 
+              src="/logoaline.png" 
               alt="Logo Aline Antunes" 
               className="w-10 h-10 object-contain shrink-0" 
             />
@@ -134,7 +134,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           <div className="bg-neutral-900 border-b border-neutral-800 px-4 h-16 flex items-center justify-between z-30 shrink-0">
             <div className="flex items-center gap-2.5">
               <img 
-                src="/logoaline.jpg" 
+                src="/logoaline.png" 
                 alt="Logo" 
                 className="w-9 h-9 object-contain" 
               />
