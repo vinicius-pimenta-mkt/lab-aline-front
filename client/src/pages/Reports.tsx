@@ -28,7 +28,7 @@ interface MonthlyData {
 
 export default function Reports() {
   const [loading, setLoading] = useState(true);
-  const [periodFilter, setPeriodFilter] = useState("mes"); // Padrão: Mês
+  const [periodFilter, setPeriodFilter] = useState("mes");
   
   const [completedServices, setCompletedServices] = useState<CompletedService[]>([]);
   const [monthlyData, setMonthlyData] = useState<MonthlyData[]>([]);
@@ -51,20 +51,20 @@ export default function Reports() {
       setLoading(true);
       try {
         const response = await api.get(`/relatorios/completo?periodo=${periodFilter}`);
-        const data = response.data || {}; // Garante que temos um objeto
+        const data = response.data || {};
 
-        // Proteção "|| []" adicionada para evitar TypeError do .map
         setCompletedServices(data.completedServices || []);
         setMonthlyData((data.monthlyData || []).map((d: any) => ({ ...d, month: formatMonthLabel(d.month) })));
         setCostsDistribution(data.costsDistribution || []);
         setPaymentMethods(data.paymentMethods || []);
         
-        // Proteção de campos undefined para evitar o erro do toFixed
+        // Assegura que null vire 0
         setTotalRevenue(data.totals?.revenue || 0);
         setTotalCost(data.totals?.cost || 0);
         setTotalProfit(data.totals?.profit || 0);
 
       } catch (error) {
+        console.error("Erro no fetchReports:", error);
         toast.error("Falha ao carregar os dados dos relatórios.");
       } finally {
         setLoading(false);
@@ -78,18 +78,16 @@ export default function Reports() {
     return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value || 0);
   };
 
-  // Previne divisão por zero ou uso de undefined
   const profitMargin = totalRevenue > 0 ? ((totalProfit / totalRevenue) * 100).toFixed(1) : "0";
 
   const pieData = [
-    { name: "Lucro Líquido", value: totalProfit, isProfit: true },
-    ...costsDistribution.map(c => ({ name: c.name, value: c.value, isProfit: false }))
+    { name: "Lucro Líquido", value: totalProfit || 0, isProfit: true },
+    ...costsDistribution.map(c => ({ name: c.name, value: c.value || 0, isProfit: false }))
   ];
   const COST_COLORS = ["#EF4444", "#F97316", "#F59E0B", "#EAB308", "#F43F5E", "#FB923C", "#A8A29E"];
 
   return (
     <div className="min-h-screen bg-neutral-950 p-6">
-      {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
         <div>
           <h1 className="text-3xl font-black text-white uppercase tracking-tight">RELATÓRIOS & CAIXA</h1>
@@ -120,7 +118,6 @@ export default function Reports() {
         <div className="text-center py-20 text-[#DEAE60] font-bold">Carregando relatório do período...</div>
       ) : (
         <>
-          {/* KPIs Principais */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
             <Card className="bg-neutral-900 border-neutral-800 p-6 shadow-xl">
               <p className="text-neutral-400 text-xs font-bold uppercase tracking-widest mb-2">Receita Total</p>
@@ -141,7 +138,6 @@ export default function Reports() {
             </Card>
           </div>
 
-          {/* Gráficos de Composição Financeira */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
             <Card className="bg-neutral-900 border-neutral-800 p-6 shadow-xl">
               <h2 className="text-sm font-black text-[#DEAE60] uppercase tracking-widest mb-6 flex items-center gap-2">
@@ -183,7 +179,6 @@ export default function Reports() {
             </Card>
           </div>
 
-          {/* Gráfico de Histórico Mensal */}
           <Card className="bg-neutral-900 border-neutral-800 p-6 shadow-xl mb-8">
             <h2 className="text-sm font-black text-[#DEAE60] uppercase tracking-widest mb-6">Histórico Receita vs Custo (Últimos 12 Meses)</h2>
             <ResponsiveContainer width="100%" height={300}>
@@ -200,7 +195,6 @@ export default function Reports() {
             </ResponsiveContainer>
           </Card>
 
-          {/* Tabela de Serviços Finalizados */}
           <Card className="bg-neutral-900 border-neutral-800 overflow-hidden shadow-xl">
             <div className="p-6 border-b border-neutral-800">
               <h2 className="text-sm font-black text-[#DEAE60] uppercase tracking-widest">Extrato do Período Selecionado</h2>
