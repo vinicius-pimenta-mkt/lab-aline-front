@@ -112,7 +112,7 @@ export default function Services() {
   });
 
   return (
-    <div className="min-h-screen bg-neutral-950 p-6">
+    <div className="min-h-screen bg-transparent p-6">
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div>
