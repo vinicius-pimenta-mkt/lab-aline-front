@@ -69,7 +69,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         <div className="p-4 border-b border-neutral-800 flex items-center justify-between h-16 shrink-0">
           <div className="flex items-center gap-3 overflow-hidden">
             <img 
-              src="/logoaline.jpg" 
+              src="/logoaline.png" 
               alt="Logo Aline Antunes" 
               className="w-10 h-10 object-contain rounded-xl border border-[#DEAE60]/20 bg-neutral-950 shrink-0" 
             />
@@ -138,7 +138,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             {/* Identidade na Esquerda */}
             <div className="flex items-center gap-2.5">
               <img 
-                src="/logoaline.jpg" 
+                src="/logoaline.png" 
                 alt="Logo" 
                 className="w-9 h-9 object-contain rounded-lg border border-[#DEAE60]/20 bg-neutral-950" 
               />
