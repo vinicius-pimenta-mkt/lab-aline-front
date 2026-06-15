@@ -9,16 +9,16 @@ interface DashboardLayoutProps {
 }
 
 export default function DashboardLayout({ children }: DashboardLayoutProps) {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isDesktop, setIsDesktop] = useState(true);
   const [, setLocation] = useLocation();
 
-  // Detecta o tamanho da tela para ajustar o comportamento do menu automaticamente
+  // Monitora o tamanho do ecrã para ajustar o comportamento inicial do menu
   useEffect(() => {
     const checkScreenSize = () => {
       const desktop = window.innerWidth >= 768;
       setIsDesktop(desktop);
-      setSidebarOpen(desktop); // Abre por padrão no PC, fecha por padrão no Celular
+      setSidebarOpen(desktop); // Abre expandido no PC, inicia totalmente fechado no Mobile
     };
 
     checkScreenSize();
@@ -44,14 +44,14 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const handleNavigate = (href: string) => {
     setLocation(href);
     if (!isDesktop) {
-      setSidebarOpen(false); // Fecha o menu automaticamente ao clicar em um item no celular
+      setSidebarOpen(false); // Fecha o menu lateral automaticamente após clicar num item no telemóvel
     }
   };
 
   return (
     <div className="min-h-screen bg-neutral-950 flex overflow-hidden">
       
-      {/* Sombra de fundo escura quando o menu abrir no celular */}
+      {/* Sombra de fundo escura de sobreposição (exclusiva para telemóvel com menu aberto) */}
       {!isDesktop && sidebarOpen && (
         <div
           className="fixed inset-0 bg-black/70 z-40 backdrop-blur-sm transition-opacity"
@@ -59,21 +59,20 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         />
       )}
 
-      {/* Menu Lateral (Sidebar) - Corrigido para sumir 100% no mobile quando falso */}
+      {/* Menu Lateral (Sidebar) */}
       <div
-        className={`fixed inset-y-0 left-0 z-50 bg-neutral-900 border-r border-neutral-800 flex flex-col transition-all duration-300 md:relative md:translate-x-0
+        className={`fixed inset-y-0 left-0 h-screen z-50 bg-neutral-900 border-r border-neutral-800 flex flex-col transition-all duration-300 md:relative md:h-screen md:translate-x-0
           ${sidebarOpen ? "translate-x-0 w-64" : "-translate-x-full md:translate-x-0 w-64 md:w-20"}
         `}
       >
-        {/* Topo do Menu: Substituído o quadrado "AA" pela Logo + Nome */}
+        {/* Topo do Menu: Apresenta a Logo solta e sem fundo + Nome */}
         <div className="p-4 border-b border-neutral-800 flex items-center justify-between h-16 shrink-0">
           <div className="flex items-center gap-3 overflow-hidden">
             <img 
-              src="/logoaline.png" 
+              src="/logoaline.jpg" 
               alt="Logo Aline Antunes" 
-              className="w-10 h-10 object-contain rounded-xl border border-[#DEAE60]/20 bg-neutral-950 shrink-0" 
+              className="w-10 h-10 object-contain shrink-0" 
             />
-            {/* O nome só aparece se a barra estiver expandida no PC ou se estiver no Celular */}
             {(isDesktop ? sidebarOpen : true) && (
               <span className="font-black text-white tracking-wider text-xs truncate uppercase">
                 Aline Antunes
@@ -81,18 +80,16 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             )}
           </div>
           
-          {/* Botão de fechar (X) interno - exclusivo para celular */}
-          {!isDesktop && (
-            <button
-              onClick={() => setSidebarOpen(false)}
-              className="p-1 hover:bg-neutral-800 rounded-lg transition-colors text-neutral-400"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          )}
+          {/* Botão de alternar dinâmico: No PC colapsa para ícones, no Mobile fecha o painel */}
+          <button
+            onClick={() => setSidebarOpen(!sidebarOpen)}
+            className="p-1.5 hover:bg-neutral-800 rounded-lg transition-colors text-neutral-400"
+          >
+            {sidebarOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
+          </button>
         </div>
 
-        {/* Itens do Menu */}
+        {/* Links do Menu */}
         <div className="flex-1 overflow-y-auto p-4">
           <p className={`text-[10px] font-bold text-neutral-500 uppercase tracking-widest mb-4 px-2 ${isDesktop && !sidebarOpen ? 'hidden' : 'block'}`}>
             Menu Principal
@@ -111,7 +108,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           </nav>
         </div>
 
-        {/* Rodapé do Menu (Usuário e Sair) */}
+        {/* Rodapé do Menu (Dados do Utilizador Conectado) */}
         <div className="border-t border-neutral-800 p-4 space-y-3 shrink-0">
           {(isDesktop ? sidebarOpen : true) && (
             <div className="px-3 py-2 bg-neutral-950/40 border border-neutral-800/60 rounded-lg">
@@ -129,33 +126,32 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         </div>
       </div>
 
-      {/* Área de Conteúdo da Página */}
+      {/* Contentor de Visualização das Páginas Internas */}
       <div className="flex-1 flex flex-col h-screen overflow-hidden relative">
         
-        {/* Barra Superior - Exclusiva para Celular (Sem botão esquerdo, gatilho apenas na direita) */}
+        {/* Barra Superior - Renderizada em Dispositivos Móveis (Logo limpa e solta) */}
         {!isDesktop && (
           <div className="bg-neutral-900 border-b border-neutral-800 px-4 h-16 flex items-center justify-between z-30 shrink-0">
-            {/* Identidade na Esquerda */}
             <div className="flex items-center gap-2.5">
               <img 
-                src="/logoaline.png" 
+                src="/logoaline.jpg" 
                 alt="Logo" 
-                className="w-9 h-9 object-contain rounded-lg border border-[#DEAE60]/20 bg-neutral-950" 
+                className="w-9 h-9 object-contain" 
               />
               <h1 className="font-black text-white tracking-wider text-xs uppercase">Aline Antunes</h1>
             </div>
             
-            {/* Ícone de abrir o menu localizado unicamente no lado direito */}
+            {/* Gatilho posicionado corretamente na extrema direita */}
             <button
               onClick={() => setSidebarOpen(true)}
-              className="p-2 bg-neutral-800/40 hover:bg-neutral-800 rounded-xl transition-colors border border-neutral-800 active:scale-95 text-[#DEAE60]"
+              className="p-2 bg-neutral-800/40 hover:bg-neutral-800 rounded-xl transition-colors border border-neutral-800 text-[#DEAE60]"
             >
               <Menu className="w-5 h-5" />
             </button>
           </div>
         )}
 
-        {/* Recipiente que renderiza as telas do sistema */}
+        {/* Exibição da Página ativa */}
         <div className="flex-1 overflow-auto bg-neutral-950">
           {children}
         </div>
