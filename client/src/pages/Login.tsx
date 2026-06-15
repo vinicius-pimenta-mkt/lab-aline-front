@@ -50,7 +50,7 @@ export default function Login() {
           {/* Nova Logo Substituindo o Círculo com "A" */}
           <div className="flex justify-center mb-4">
             <img 
-              src="/logoaline.jpg" 
+              src="/logoaline.png" 
               alt="Logo Aline Antunes" 
               className="w-24 h-24 sm:w-28 sm:h-28 object-contain rounded-2xl shadow-lg border border-[#DEAE60]/20" 
             />
