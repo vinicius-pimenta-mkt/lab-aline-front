@@ -80,6 +80,11 @@ export default function Reports() {
 
   const profitMargin = totalRevenue > 0 ? ((totalProfit / totalRevenue) * 100).toFixed(1) : "0";
 
+  // Função para chamar a impressão/salvar em PDF padrão do navegador
+  const exportarRelatorio = () => {
+    window.print();
+  };
+
   const pieData = [
     { name: "Lucro Líquido", value: totalProfit || 0, isProfit: true },
     ...costsDistribution.map(c => ({ name: c.name, value: c.value || 0, isProfit: false }))
@@ -93,7 +98,9 @@ export default function Reports() {
           <h1 className="text-3xl font-black text-white uppercase tracking-tight">RELATÓRIOS & CAIXA</h1>
           <p className="text-neutral-400 text-sm mt-2">Análise de serviços finalizados e rentabilidade</p>
         </div>
-        <div className="flex items-center gap-3">
+        
+        {/* A classe print:hidden faz com que essa div suma na hora de exportar para PDF */}
+        <div className="flex items-center gap-3 print:hidden">
           <div className="flex items-center gap-2 bg-neutral-900 border border-neutral-800 rounded-lg p-1 pr-2">
             <div className="bg-neutral-800 p-2 rounded-md"><CalendarDays className="w-4 h-4 text-[#DEAE60]"/></div>
             <Select value={periodFilter} onValueChange={setPeriodFilter}>
@@ -108,14 +115,17 @@ export default function Reports() {
               </SelectContent>
             </Select>
           </div>
-          <Button className="bg-[#DEAE60] hover:bg-[#DEAE60]/90 text-neutral-950 font-bold rounded-lg h-10">
+          <Button 
+            onClick={exportarRelatorio} 
+            className="bg-[#DEAE60] hover:bg-[#DEAE60]/90 text-neutral-950 font-bold rounded-lg h-10"
+          >
             <Download className="w-4 h-4 mr-2" /> Exportar
           </Button>
         </div>
       </div>
 
       {loading ? (
-        <div className="text-center py-20 text-[#DEAE60] font-bold">Carregando relatório do período...</div>
+        <div className="text-center py-20 text-[#DEAE60] font-bold print:hidden">Carregando relatório do período...</div>
       ) : (
         <>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
