@@ -24,7 +24,7 @@ interface Cost {
 }
 
 interface ServiceData {
-  id: string;
+  id: string | number;
   patient: string;
   patientPhone: string;
   dentist: string;
@@ -214,9 +214,6 @@ export default function ServiceDetail() {
 
   return (
     <>
-      {/* ======================================================== */}
-      {/* TELA PRINCIPAL DO SISTEMA (OCULTA DURANTE A IMPRESSÃO)   */}
-      {/* ======================================================== */}
       <div className="min-h-screen bg-transparent p-6 print:hidden relative">
         
         {/* MODAL DE SELEÇÃO PARA EXPORTAÇÃO */}
@@ -302,7 +299,6 @@ export default function ServiceDetail() {
           </div>
         </div>
 
-        {/* O RESTANTE DO SEU LAYOUT ORIGINAL CONTINUA AQUI... */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-6">
             
@@ -589,7 +585,6 @@ export default function ServiceDetail() {
       {/* ======================================================== */}
       <div className="hidden print:block bg-white text-black min-h-screen p-8 font-sans">
         
-        {/* Cabeçalho do PDF */}
         <div className="flex items-center justify-between border-b-2 border-neutral-300 pb-8 mb-8">
           <div className="flex items-center gap-6">
             <img src="/logoaline.png" alt="Logo Aline Antunes" className="w-24 h-24 object-contain" />
@@ -603,12 +598,11 @@ export default function ServiceDetail() {
           </div>
           <div className="text-right">
             <h2 className="text-2xl font-black uppercase text-neutral-800 tracking-tight">Extrato de Serviço</h2>
-            <p className="text-neutral-500 font-bold mt-2">Ordem #{service.id.substring(0,6).toUpperCase()}</p>
+            <p className="text-neutral-500 font-bold mt-2">Serviço #{String(service.id).padStart(5, '0')}</p>
             <p className="text-neutral-500 font-bold">Data de Emissão: {new Date().toLocaleDateString('pt-BR')}</p>
           </div>
         </div>
 
-        {/* Dados Cliente / Paciente */}
         <div className="mb-10 grid grid-cols-2 gap-8 bg-neutral-50 p-6 rounded-xl border border-neutral-200">
           <div>
             <h3 className="text-[10px] font-bold uppercase text-neutral-500 tracking-widest mb-1">Dentista / Parceiro</h3>
@@ -622,7 +616,6 @@ export default function ServiceDetail() {
           </div>
         </div>
 
-        {/* Tabela Detalhada */}
         <div className="mb-12">
           <h3 className="text-sm font-black uppercase text-neutral-800 tracking-widest mb-4 border-b border-neutral-300 pb-2">Detalhamento dos Valores</h3>
           <table className="w-full text-left border-collapse">
@@ -634,7 +627,6 @@ export default function ServiceDetail() {
               </tr>
             </thead>
             <tbody>
-              {/* Linha Principal do Procedimento */}
               <tr className="border-b border-neutral-200">
                 <td className="py-5 font-bold text-neutral-800 text-center">01</td>
                 <td className="py-5 font-black text-neutral-900 text-lg uppercase">{service.procedure}</td>
@@ -643,7 +635,6 @@ export default function ServiceDetail() {
                 </td>
               </tr>
               
-              {/* Linhas de Custos Extras Selecionados no Modal */}
               {service.costs.filter(c => selectedCostsPdf.includes(c.id)).map(cost => (
                 <tr key={cost.id} className="border-b border-neutral-200 bg-neutral-50/50">
                   <td className="py-4 font-bold text-neutral-500 text-center">-</td>
@@ -657,10 +648,9 @@ export default function ServiceDetail() {
           </table>
         </div>
 
-        {/* Totalizador Footer */}
         <div className="flex justify-end mt-12">
           <div className="bg-neutral-100 p-8 rounded-2xl w-80 text-right border border-neutral-200 shadow-sm">
-            <p className="text-[10px] font-bold uppercase text-neutral-500 tracking-widest mb-2">Total a Pagar</p>
+            <p className="text-[10px] font-bold uppercase text-neutral-500 tracking-widest mb-2">Total</p>
             <p className="text-4xl font-black text-neutral-900">
               R$ {totalPdfValue.toFixed(2).replace('.', ',')}
             </p>
@@ -672,12 +662,10 @@ export default function ServiceDetail() {
           </div>
         </div>
         
-        {/* Assinatura (Opcional, apenas visual) */}
         <div className="mt-32 pt-8 border-t border-neutral-300 w-64 text-center mx-auto">
           <p className="text-xs font-bold uppercase tracking-widest text-neutral-500">Aline Antunes Prótese</p>
         </div>
       </div>
-      
     </>
   );
 }
