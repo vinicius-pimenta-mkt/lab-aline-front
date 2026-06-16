@@ -14,13 +14,20 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const [, setLocation] = useLocation();
 
   useEffect(() => {
+    let wasDesktop = window.innerWidth >= 768;
+    setIsDesktop(wasDesktop);
+    setSidebarOpen(wasDesktop);
+
     const checkScreenSize = () => {
-      const desktop = window.innerWidth >= 768;
-      setIsDesktop(desktop);
-      setSidebarOpen(desktop);
+      const isNowDesktop = window.innerWidth >= 768;
+      // Impede que o scroll no celular (que esconde a barra de endereço) quebre o layout
+      if (isNowDesktop !== wasDesktop) {
+        setIsDesktop(isNowDesktop);
+        setSidebarOpen(isNowDesktop);
+        wasDesktop = isNowDesktop;
+      }
     };
 
-    checkScreenSize();
     window.addEventListener("resize", checkScreenSize);
     return () => window.removeEventListener("resize", checkScreenSize);
   }, []);
@@ -48,7 +55,8 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   };
 
   return (
-    <div className="min-h-screen bg-neutral-950 flex overflow-hidden relative">
+    // Trocado min-h-screen por h-[100dvh] para travar o layout no celular perfeitamente
+    <div className="h-[100dvh] w-full bg-neutral-950 flex overflow-hidden relative">
       
       {/* ========================================== */}
       {/* IMAGEM DE FUNDO GLOBAL DO SISTEMA          */}
@@ -70,7 +78,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
 
       {/* Menu Lateral (Sidebar) com fundo translúcido para mesclar com o fundo */}
       <div
-        className={`fixed inset-y-0 left-0 h-screen z-50 bg-neutral-900/90 backdrop-blur-md border-r border-neutral-800/50 flex flex-col transition-all duration-300 md:relative md:h-screen md:translate-x-0
+        className={`fixed inset-y-0 left-0 h-[100dvh] z-50 bg-neutral-900/90 backdrop-blur-md border-r border-neutral-800/50 flex flex-col transition-all duration-300 md:relative md:translate-x-0
           ${sidebarOpen ? "translate-x-0 w-64" : "-translate-x-full md:translate-x-0 w-64 md:w-20"}
         `}
       >
@@ -132,12 +140,17 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       </div>
 
       {/* Contentor Central (Z-10 para ficar por cima do fundo) */}
-      <div className="flex-1 flex flex-col h-screen overflow-hidden relative z-10">
+      <div className="flex-1 flex flex-col h-[100dvh] overflow-hidden relative z-10">
         
-        {/* Barra Superior Mobile (Translúcida) */}
+        {/* Barra Superior Mobile - COM A LOGO RESTAURADA */}
         {!isDesktop && (
           <div className="bg-neutral-900/90 backdrop-blur-md border-b border-neutral-800/50 px-4 h-16 flex items-center justify-between z-30 shrink-0">
-            <div className="flex items-center">
+            <div className="flex items-center gap-2.5">
+              <img 
+                src="/logoaline.png" 
+                alt="Logo" 
+                className="w-8 h-8 object-contain shrink-0" 
+              />
               <h1 className="font-black text-white tracking-wider text-sm uppercase">Aline Antunes</h1>
             </div>
             
@@ -150,7 +163,6 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           </div>
         )}
 
-        {/* Fundo Trocado para Transparente Aqui para não ofuscar a imagem */}
         <div className="flex-1 overflow-auto bg-transparent">
           {children}
         </div>
