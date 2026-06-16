@@ -173,14 +173,13 @@ export default function ServiceDetail() {
   };
 
   // =========================================================================
-  // NOVA FUNÇÃO DE GERAR PDF: Cria um documento invisível limpo idêntico ao modelo
+  // GERAÇÃO DO PDF - Atualizado com Prazos e Telefones
   // =========================================================================
   const triggerPdfPrint = () => {
     setIsExportModalOpen(false);
 
     if (!service) return;
 
-    // Abre uma janela em branco
     const printWindow = window.open('', '_blank');
     if (!printWindow) {
       toast.error("O bloqueador de pop-ups impediu a geração do PDF. Permita pop-ups para este site.");
@@ -189,6 +188,9 @@ export default function ServiceDetail() {
 
     const dataEmissao = new Date().toLocaleDateString('pt-BR');
     const totalPdfValue = service.grossValue + service.costs.filter(c => selectedCostsPdf.includes(c.id)).reduce((acc, curr) => acc + Number(curr.value), 0);
+
+    const prazoFormatado = service.prazo_entrega ? new Date(service.prazo_entrega + "T00:00:00").toLocaleDateString('pt-BR') : "Não definido";
+    const finalizadoFormatado = service.completedAt ? new Date(service.completedAt + "T00:00:00").toLocaleDateString('pt-BR') : "Pendente";
 
     let rowsHtml = `
       <tr>
@@ -202,7 +204,7 @@ export default function ServiceDetail() {
     service.costs.filter(c => selectedCostsPdf.includes(c.id)).forEach((cost) => {
       rowsHtml += `
         <tr>
-          <td class="center">01</td>
+          <td class="center">-</td>
           <td>ADICIONAL: ${cost.name.toUpperCase()}</td>
           <td class="right">R$ ${Number(cost.value).toFixed(2).replace('.', ',')}</td>
           <td class="right">R$ ${Number(cost.value).toFixed(2).replace('.', ',')}</td>
@@ -210,7 +212,6 @@ export default function ServiceDetail() {
       `;
     });
 
-    // Template HTML que imita perfeitamente o PDF modelo (sem fundo preto, sem menus)
     const htmlContent = `
       <!DOCTYPE html>
       <html>
@@ -223,7 +224,7 @@ export default function ServiceDetail() {
           .header h1 { font-size: 16px; margin: 0 0 5px 0; font-weight: bold; }
           .header p { margin: 0; }
           .info { margin-bottom: 30px; }
-          .info p { margin: 3px 0; }
+          .info p { margin: 4px 0; }
           table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
           th { border-top: 1px solid #000; border-bottom: 1px solid #000; padding: 6px; text-align: left; font-size: 11px; }
           td { padding: 6px; border-bottom: 1px dashed #ccc; font-size: 11px; }
@@ -239,13 +240,26 @@ export default function ServiceDetail() {
         <div class="header">
           <h1>ALINE ANTUNES PRÓTESE ODONTOLÓGICA</h1>
           <p>Telefone: (31) 99526-3682</p>
-          <p>Extrato de Serviços Detalhado</p>
+          <p>Extrato de Serviço Detalhado</p>
         </div>
 
         <div class="info">
-          <p><strong>Cliente/Dentista:</strong> ${service.dentist.toUpperCase()} ${service.dentistPhone ? ` - ${service.dentistPhone}` : ''}</p>
-          <p><strong>Paciente:</strong> ${service.patient.toUpperCase()}</p>
-          <p><strong>Lançamento:</strong> ${service.createdAt || dataEmissao} &nbsp;&nbsp;&nbsp; <strong>Ordem:</strong> #${String(service.id).padStart(5, '0')}</p>
+          <p>
+            <strong>Dentista/Parceiro:</strong> ${service.dentist.toUpperCase()} 
+            ${service.dentistPhone ? `&nbsp;|&nbsp; <strong>Tel:</strong> ${service.dentistPhone}` : ''}
+          </p>
+          <p>
+            <strong>Paciente:</strong> ${service.patient.toUpperCase()} 
+            ${service.patientPhone ? `&nbsp;|&nbsp; <strong>Tel:</strong> ${service.patientPhone}` : ''}
+          </p>
+          <p>
+            <strong>Serviço:</strong> #${String(service.id).padStart(5, '0')} &nbsp;&nbsp;&nbsp; 
+            <strong>Data de Entrada:</strong> ${service.createdAt || dataEmissao}
+          </p>
+          <p>
+            <strong>Prazo Previsto:</strong> ${prazoFormatado} &nbsp;&nbsp;&nbsp; 
+            <strong>Status Final:</strong> ${finalizadoFormatado}
+          </p>
         </div>
 
         <table>
@@ -281,12 +295,10 @@ export default function ServiceDetail() {
       </html>
     `;
 
-    // Escreve o HTML na janela e aciona a impressão nativa
     printWindow.document.write(htmlContent);
     printWindow.document.close();
     printWindow.focus();
 
-    // Pequeno atraso para garantir que o navegador processe o HTML antes de chamar a caixa de impressão
     setTimeout(() => {
       printWindow.print();
       printWindow.close();
