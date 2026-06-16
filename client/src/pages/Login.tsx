@@ -7,7 +7,6 @@ import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { toast } from "sonner";
-// Importação do 'Smile' foi removida, pois tiramos o emoji
 
 export default function Login() {
   const [, setLocation] = useLocation();
@@ -36,35 +35,38 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-[100dvh] flex items-center justify-center relative p-4 sm:p-6 bg-transparent">
+    <div className="min-h-[100dvh] flex items-center justify-center relative p-4 sm:p-6 bg-neutral-950 overflow-hidden">
+      
+      {/* A sua imagem de fundo mantida com boa visibilidade */}
       <img 
         src="/alinefundo.png" 
-        className="absolute inset-0 w-full h-full object-cover z-0 opacity-40" 
+        className="absolute inset-0 w-full h-full object-cover z-0 opacity-60" 
         alt="Fundo" 
       />
-      <div className="fixed inset-0 bg-neutral-950/40 backdrop-blur-[3px] z-10" />
+      
+      {/* Camada de transparência escura com leve desfoque */}
+      <div className="fixed inset-0 bg-neutral-950/70 backdrop-blur-[4px] z-10" />
 
-      <Card className="w-full max-w-[400px] shadow-2xl z-20 bg-neutral-900/90 border-[0.5px] border-neutral-800 backdrop-blur-md overflow-hidden rounded-xl">
+      {/* Card de Login */}
+      <Card className="w-full max-w-[400px] shadow-2xl z-20 bg-neutral-900/90 border-[0.5px] border-neutral-800 backdrop-blur-md overflow-hidden rounded-xl relative">
         <div className="text-center space-y-4 pt-8 pb-4 px-6 sm:px-8">
           
-          {/* Nova Logo Substituindo o Círculo com "A" */}
+          {/* Logo Maior, Solta e Sem Bordas */}
           <div className="flex justify-center mb-4">
             <img 
               src="/logoaline.png" 
               alt="Logo Aline Antunes" 
-              className="w-24 h-24 sm:w-28 sm:h-28 object-contain rounded-2xl shadow-lg border border-[#DEAE60]/20" 
+              className="w-32 h-32 sm:w-36 sm:h-36 object-contain" 
             />
           </div>
 
           <div className="space-y-1">
-            {/* Título sem o Emoji */}
             <h1 className="text-xl sm:text-2xl font-black text-white uppercase flex items-center justify-center gap-2 tracking-tight">
               Aline Antunes
             </h1>
             <p className="text-xs font-bold text-[#DEAE60] uppercase tracking-widest">
               Prótese Odontológica
             </p>
-            {/* Texto clareado (text-neutral-400 em vez do dourado forte) */}
             <p className="text-xs font-bold text-neutral-400 uppercase tracking-widest">
               Painel Administrativo
             </p>
@@ -129,7 +131,7 @@ export default function Login() {
 
       {/* Footer */}
       <p className="absolute bottom-4 text-center text-neutral-600 text-xs z-20">
-        © 2024 Aline Antunes Prótese Odontológica. Todos os direitos reservados.
+        © 2025 Aline Antunes Prótese Odontológica. Todos os direitos reservados.
       </p>
     </div>
   );
