@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import api from "../lib/api";
 import { useLocation } from "wouter";
 import { Card } from "@/components/ui/card";
@@ -23,6 +23,12 @@ interface StepForm {
   status: string;
 }
 
+interface DefaultService {
+  id: number;
+  nome: string;
+  valor_padrao: number;
+}
+
 interface ServiceFormData {
   patientName: string;
   patientPhone: string;
@@ -44,7 +50,11 @@ interface ServiceFormData {
 
 export default function NewService() {
   const [, setLocation] = useLocation();
-  const [formData, setFormData] = useState<ServiceFormData>({
+  
+  // Estado para armazenar os serviços pré-fixados vindos do banco
+  const [defaultServices, setDefaultServices] = useState<DefaultService[]>([]);
+
+  const [formData, setFormData] = useState<ServiceFormData>(({
     patientName: "",
     patientPhone: "",
     patientNotes: "",
@@ -61,13 +71,36 @@ export default function NewService() {
     completedAt: "",
     costs: [{ id: Date.now(), name: "", value: "" }],
     etapas: [{ id: Date.now() + 1, nome: "Modelo de Gesso", descricao: "Vazamento inicial do modelo", status: "pending" }],
-  });
+  }));
 
   const [loading, setLoading] = useState(false);
 
+  // Carrega a tabela de preços dinâmica do backend
+  useEffect(() => {
+    api.get("/servicos-padrao")
+      .then((res) => setDefaultServices(res.data || []))
+      .catch((err) => console.error("Erro ao carregar tabela de preços:", err));
+  }, []);
+
+  // Monitora as mudanças nos inputs e preenche o preço de forma automática se houver correspondência
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    
+    setFormData((prev) => {
+      const updatedData = { ...prev, [name]: value };
+      
+      // Se o campo alterado for o procedimento, busca o valor correspondente na tabela
+      if (name === "procedure") {
+        const matchedService = defaultServices.find(
+          (s) => s.nome.toLowerCase() === value.toLowerCase().trim()
+        );
+        if (matchedService) {
+          updatedData.grossValue = matchedService.valor_padrao.toString();
+        }
+      }
+      
+      return updatedData;
+    });
   };
 
   const handleSelectChange = (name: string, value: string) => {
@@ -147,8 +180,8 @@ export default function NewService() {
         resumo_trabalho: formData.patientNotes,
         observacoes: formData.dentistNotes,
         etapas: formData.etapas,
-        status: formData.status, // Envia o Status inicial
-        data_saida: formData.status === "Finalizado" ? formData.completedAt : null // Envia a data retroativa se finalizado
+        status: formData.status, 
+        data_saida: formData.status === "Finalizado" ? formData.completedAt : null 
       });
       
       toast.success("Serviço registado com sucesso!");
@@ -287,7 +320,7 @@ export default function NewService() {
                   </div>
                   <div className="space-y-2 md:col-span-2">
                     <Label htmlFor="patientNotes" className="text-xs font-bold text-neutral-400 uppercase">Sobre o Caso (Paciente)</Label>
-                    <Textarea id="patientNotes" name="patientNotes" placeholder="Detalhes clínicos, cor do dente, particularidades do paciente..." value={formData.patientNotes} onChange={handleChange} rows={2} className={inputBaseStyle} />
+                    <Textarea id="patientNotes" name="patientNotes" placeholder="Detalhes clínicos, cor do dente, particularidades do dente ou do paciente..." value={formData.patientNotes} onChange={handleChange} rows={2} className={inputBaseStyle} />
                   </div>
                 </div>
               </div>
@@ -311,16 +344,26 @@ export default function NewService() {
                 </div>
               </div>
 
-              {/* Detalhes do Procedimento */}
+              {/* Detalhes do Procedimento (Integrado com a Datalist Dinâmica) */}
               <div className="border-t border-neutral-800/50 pt-8">
                 <h2 className="text-sm font-black text-[#DEAE60] uppercase tracking-widest mb-4">Detalhes do Serviço</h2>
                 <div className="space-y-6">
                   <div className="space-y-2">
                     <Label htmlFor="procedure" className="text-xs font-bold text-neutral-400 uppercase">Tipo de Procedimento *</Label>
-                    <Input id="procedure" name="procedure" list="procedure-options" placeholder="Digite para buscar ou criar um procedimento" value={formData.procedure} onChange={handleChange} className={inputBaseStyle} />
+                    <Input 
+                      id="procedure" 
+                      name="procedure" 
+                      list="procedure-options" 
+                      placeholder="Digite para buscar ou criar um procedimento" 
+                      value={formData.procedure} 
+                      onChange={handleChange} 
+                      className={inputBaseStyle} 
+                      autoComplete="off"
+                    />
                     <datalist id="procedure-options">
-                      <option value="Coroa Unitária" /><option value="Ponte Fixa" /><option value="Prótese Total" />
-                      <option value="Prótese Parcial" /><option value="Coroa sobre Implante" /><option value="Placa de Bruxismo" /><option value="Protocolo" />
+                      {defaultServices.map((srv) => (
+                        <option key={srv.id} value={srv.nome} />
+                      ))}
                     </datalist>
                   </div>
                   <div className="space-y-2">
@@ -422,7 +465,7 @@ export default function NewService() {
           </Card>
         </div>
 
-        {/* Sidebar - Resumo */}
+        {/* Sidebar - Resumo Financeiro Espelhado */}
         <div className="space-y-6">
           <Card className="bg-neutral-900/80 border-neutral-800 p-6 shadow-xl sticky top-6">
             <h3 className="font-bold text-white uppercase mb-6 flex items-center gap-2">
