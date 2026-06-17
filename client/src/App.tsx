@@ -10,6 +10,7 @@ import Services from "./pages/Services";
 import NewService from "./pages/NewService";
 import ServiceDetail from "./pages/ServiceDetail";
 import Reports from "./pages/Reports";
+import Partners from "./pages/Partners"; // <-- Importação adicionada aqui
 import DashboardLayout from "./components/DashboardLayout";
 import { useEffect, useState } from "react";
 
@@ -74,6 +75,16 @@ function Router() {
           </DashboardLayout>
         )}
       </Route>
+      
+      {/* <-- NOVA ROTA ADICIONADA AQUI --> */}
+      <Route path="/partners">
+        {() => (
+          <DashboardLayout>
+            <ProtectedRoute component={Partners} />
+          </DashboardLayout>
+        )}
+      </Route>
+
       <Route path="/" component={() => <ProtectedRoute component={Dashboard} />} />
       <Route path="/404" component={NotFound} />
       <Route component={NotFound} />
