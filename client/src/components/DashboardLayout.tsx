@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
-import { Menu, X, LogOut, Home, FileText, Plus, BarChart3 } from "lucide-react";
+import { Menu, X, LogOut, Home, FileText, Plus, BarChart3, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 
@@ -43,6 +43,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     { label: "SERVIÇOS", icon: FileText, href: "/services" },
     { label: "NOVO SERVIÇO", icon: Plus, href: "/services/new" },
     { label: "RELATÓRIOS", icon: BarChart3, href: "/reports" },
+    { label: "PARCEIROS", icon: Users, href: "/partners" },
   ];
 
   const user = JSON.parse(localStorage.getItem("user") || "{}");
