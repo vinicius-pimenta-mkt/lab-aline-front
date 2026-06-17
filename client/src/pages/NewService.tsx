@@ -29,6 +29,12 @@ interface DefaultService {
   valor_padrao: number;
 }
 
+interface DentistList {
+  id: number;
+  nome: string;
+  telefone: string;
+}
+
 interface ServiceFormData {
   patientName: string;
   patientPhone: string;
@@ -51,10 +57,10 @@ interface ServiceFormData {
 export default function NewService() {
   const [, setLocation] = useLocation();
   
-  // Estado para armazenar os serviços pré-fixados vindos do banco
   const [defaultServices, setDefaultServices] = useState<DefaultService[]>([]);
+  const [dentists, setDentists] = useState<DentistList[]>([]); // Estado para os parceiros
 
-  const [formData, setFormData] = useState<ServiceFormData>(({
+  const [formData, setFormData] = useState<ServiceFormData>({
     patientName: "",
     patientPhone: "",
     patientNotes: "",
@@ -71,31 +77,45 @@ export default function NewService() {
     completedAt: "",
     costs: [{ id: Date.now(), name: "", value: "" }],
     etapas: [{ id: Date.now() + 1, nome: "Modelo de Gesso", descricao: "Vazamento inicial do modelo", status: "pending" }],
-  }));
+  });
 
   const [loading, setLoading] = useState(false);
 
-  // Carrega a tabela de preços dinâmica do backend
+  // Carrega tanto a tabela de preços quanto a lista de dentistas parceiros
   useEffect(() => {
     api.get("/servicos-padrao")
       .then((res) => setDefaultServices(res.data || []))
       .catch((err) => console.error("Erro ao carregar tabela de preços:", err));
+
+    api.get("/dentistas")
+      .then((res) => setDentists(res.data || []))
+      .catch((err) => console.error("Erro ao carregar dentistas:", err));
   }, []);
 
-  // Monitora as mudanças nos inputs e preenche o preço de forma automática se houver correspondência
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     
     setFormData((prev) => {
       const updatedData = { ...prev, [name]: value };
       
-      // Se o campo alterado for o procedimento, busca o valor correspondente na tabela
+      // Lógica 1: Autopreenchimento de Preço de Procedimento
       if (name === "procedure") {
         const matchedService = defaultServices.find(
           (s) => s.nome.toLowerCase() === value.toLowerCase().trim()
         );
         if (matchedService) {
           updatedData.grossValue = matchedService.valor_padrao.toString();
+        }
+      }
+
+      // Lógica 2: Autopreenchimento do Telefone do Dentista
+      if (name === "dentistName") {
+        const matchedDentist = dentists.find(
+          (d) => d.nome.toLowerCase() === value.toLowerCase().trim()
+        );
+        // Se achou o dentista e ele tem telefone (e o campo atual está vazio), preenche sozinho
+        if (matchedDentist && matchedDentist.telefone && !prev.dentistPhone) {
+          updatedData.dentistPhone = matchedDentist.telefone;
         }
       }
       
@@ -180,8 +200,8 @@ export default function NewService() {
         resumo_trabalho: formData.patientNotes,
         observacoes: formData.dentistNotes,
         etapas: formData.etapas,
-        status: formData.status, 
-        data_saida: formData.status === "Finalizado" ? formData.completedAt : null 
+        status: formData.status,
+        data_saida: formData.status === "Finalizado" ? formData.completedAt : null
       });
       
       toast.success("Serviço registado com sucesso!");
@@ -325,16 +345,31 @@ export default function NewService() {
                 </div>
               </div>
 
-              {/* Informações do Dentista */}
+              {/* Informações do Dentista (COM AUTOCOMPLETAR) */}
               <div className="border-t border-neutral-800/50 pt-8">
-                <h2 className="text-sm font-black text-[#DEAE60] uppercase tracking-widest mb-4">Informações do Dentista</h2>
+                <h2 className="text-sm font-black text-[#DEAE60] uppercase tracking-widest mb-4">Informações do Dentista / Parceiro</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
-                    <Label htmlFor="dentistName" className="text-xs font-bold text-neutral-400 uppercase">Nome do Dentista *</Label>
-                    <Input id="dentistName" name="dentistName" placeholder="Ex: Dr. Carlos" value={formData.dentistName} onChange={handleChange} className={inputBaseStyle} />
+                    <Label htmlFor="dentistName" className="text-xs font-bold text-neutral-400 uppercase">Nome do Parceiro *</Label>
+                    <Input 
+                      id="dentistName" 
+                      name="dentistName" 
+                      list="dentist-options"
+                      placeholder="Digite para buscar ou cadastrar..." 
+                      value={formData.dentistName} 
+                      onChange={handleChange} 
+                      className={inputBaseStyle} 
+                      autoComplete="off"
+                    />
+                    {/* Datalist dinâmico alimentado pelo back-end (Parceiros) */}
+                    <datalist id="dentist-options">
+                      {dentists.map((d) => (
+                        <option key={d.id} value={d.nome} />
+                      ))}
+                    </datalist>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="dentistPhone" className="text-xs font-bold text-neutral-400 uppercase">Telefone do Dentista</Label>
+                    <Label htmlFor="dentistPhone" className="text-xs font-bold text-neutral-400 uppercase">Telefone do Parceiro</Label>
                     <Input id="dentistPhone" name="dentistPhone" placeholder="Ex: (11) 98888-8888" value={formData.dentistPhone} onChange={handleChange} className={inputBaseStyle} />
                   </div>
                   <div className="space-y-2 md:col-span-2">
@@ -344,7 +379,7 @@ export default function NewService() {
                 </div>
               </div>
 
-              {/* Detalhes do Procedimento (Integrado com a Datalist Dinâmica) */}
+              {/* Detalhes do Procedimento (COM AUTOCOMPLETAR DE VALOR) */}
               <div className="border-t border-neutral-800/50 pt-8">
                 <h2 className="text-sm font-black text-[#DEAE60] uppercase tracking-widest mb-4">Detalhes do Serviço</h2>
                 <div className="space-y-6">
