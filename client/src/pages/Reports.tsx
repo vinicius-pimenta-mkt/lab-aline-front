@@ -58,7 +58,6 @@ export default function Reports() {
         setCostsDistribution(data.costsDistribution || []);
         setPaymentMethods(data.paymentMethods || []);
         
-        // Assegura que null vire 0
         setTotalRevenue(data.totals?.revenue || 0);
         setTotalCost(data.totals?.cost || 0);
         setTotalProfit(data.totals?.profit || 0);
@@ -80,9 +79,137 @@ export default function Reports() {
 
   const profitMargin = totalRevenue > 0 ? ((totalProfit / totalRevenue) * 100).toFixed(1) : "0";
 
-  // Função para chamar a impressão/salvar em PDF padrão do navegador
+  const getPeriodoLabel = (filter: string) => {
+    switch(filter) {
+      case "hoje": return "Hoje";
+      case "semana": return "Última Semana";
+      case "quinzena": return "Últimos 15 Dias";
+      case "mes": return "Último Mês";
+      default: return filter;
+    }
+  };
+
+  // =========================================================================
+  // NOVA FUNÇÃO DE GERAR PDF DO RELATÓRIO: Documento HTML limpo
+  // =========================================================================
   const exportarRelatorio = () => {
-    window.print();
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      toast.error("O bloqueador de pop-ups impediu a geração do PDF. Permita pop-ups para este site.");
+      return;
+    }
+
+    const dataEmissao = new Date().toLocaleDateString('pt-BR');
+    
+    let rowsHtml = '';
+    completedServices.forEach((service) => {
+      rowsHtml += `
+        <tr>
+          <td>${service.patient}</td>
+          <td>${service.dentist}</td>
+          <td class="center">${service.forma_pagamento || '-'}</td>
+          <td class="right">${formatCurrency(service.grossValue)}</td>
+          <td class="right text-red">-${formatCurrency(service.operationCost)}</td>
+          <td class="right text-gold">${formatCurrency(service.netProfit)}</td>
+          <td class="center">${service.completedAt ? new Date(service.completedAt + "T00:00:00").toLocaleDateString("pt-BR") : "--"}</td>
+        </tr>
+      `;
+    });
+
+    if (completedServices.length === 0) {
+      rowsHtml = `<tr><td colspan="7" class="center">Nenhum serviço finalizado neste período.</td></tr>`;
+    }
+
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Relatorio_Financeiro_Aline_Antunes</title>
+        <style>
+          @page { margin: 15mm; size: A4 portrait; }
+          body { font-family: Arial, sans-serif; color: #000; font-size: 11px; line-height: 1.4; padding: 10px; }
+          .header { border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 20px; display: flex; align-items: center; gap: 20px;}
+          .header img { width: 80px; height: 80px; object-fit: contain; }
+          .header-text h1 { font-size: 16px; margin: 0 0 5px 0; font-weight: bold; }
+          .header-text p { margin: 0; }
+          .summary-cards { display: flex; justify-content: space-between; margin-bottom: 30px; gap: 10px;}
+          .card { border: 1px solid #ccc; padding: 12px; width: 25%; border-radius: 5px; background: #f9f9f9; }
+          .card p.title { font-size: 10px; color: #555; text-transform: uppercase; margin: 0 0 5px 0; font-weight: bold; }
+          .card p.value { font-size: 16px; font-weight: bold; margin: 0; }
+          .text-blue { color: #2563eb; }
+          .text-red { color: #dc2626; }
+          .text-green { color: #16a34a; }
+          .text-gold { color: #b48600; }
+          table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
+          th { border-top: 1px solid #000; border-bottom: 1px solid #000; padding: 8px; text-align: left; font-size: 10px; text-transform: uppercase;}
+          td { padding: 8px; border-bottom: 1px dashed #ccc; font-size: 10px; }
+          .center { text-align: center; }
+          .right { text-align: right; }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <img src="/logoaline.png" alt="Logo" />
+          <div class="header-text">
+            <h1>ALINE ANTUNES PRÓTESE ODONTOLÓGICA</h1>
+            <p>Telefone: (31) 99526-3682</p>
+            <p><strong>Relatório Financeiro e de Caixa</strong> | Emissão: ${dataEmissao}</p>
+            <p>Filtro de Período: <strong>${getPeriodoLabel(periodFilter).toUpperCase()}</strong></p>
+          </div>
+        </div>
+
+        <div class="summary-cards">
+          <div class="card">
+            <p class="title">Receita Total</p>
+            <p class="value text-blue">${formatCurrency(totalRevenue)}</p>
+          </div>
+          <div class="card">
+            <p class="title">Custos Operacionais</p>
+            <p class="value text-red">${formatCurrency(totalCost)}</p>
+          </div>
+          <div class="card">
+            <p class="title">Lucro Líquido</p>
+            <p class="value text-gold">${formatCurrency(totalProfit)}</p>
+          </div>
+          <div class="card">
+            <p class="title">Margem de Lucro</p>
+            <p class="value text-green">${profitMargin}%</p>
+          </div>
+        </div>
+
+        <h3 style="font-size: 12px; border-bottom: 1px solid #ccc; padding-bottom: 4px; margin-bottom: 10px;">EXTRATO DE SERVIÇOS DO PERÍODO</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Paciente</th>
+              <th>Dentista</th>
+              <th class="center">Pagamento</th>
+              <th class="right">Valor Bruto</th>
+              <th class="right">Custo</th>
+              <th class="right">Lucro</th>
+              <th class="center">Data Finalização</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rowsHtml}
+          </tbody>
+        </table>
+
+        <div style="text-align: center; margin-top: 40px; font-size: 10px; color: #555;">
+          <p>Aline Antunes Prótese Odontológica - Relatório gerado eletronicamente.</p>
+        </div>
+      </body>
+      </html>
+    `;
+
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
+    printWindow.focus();
+
+    setTimeout(() => {
+      printWindow.print();
+      printWindow.close();
+    }, 250);
   };
 
   const pieData = [
@@ -99,8 +226,7 @@ export default function Reports() {
           <p className="text-neutral-400 text-sm mt-2">Análise de serviços finalizados e rentabilidade</p>
         </div>
         
-        {/* A classe print:hidden faz com que essa div suma na hora de exportar para PDF */}
-        <div className="flex items-center gap-3 print:hidden">
+        <div className="flex items-center gap-3">
           <div className="flex items-center gap-2 bg-neutral-900 border border-neutral-800 rounded-lg p-1 pr-2">
             <div className="bg-neutral-800 p-2 rounded-md"><CalendarDays className="w-4 h-4 text-[#DEAE60]"/></div>
             <Select value={periodFilter} onValueChange={setPeriodFilter}>
@@ -125,7 +251,7 @@ export default function Reports() {
       </div>
 
       {loading ? (
-        <div className="text-center py-20 text-[#DEAE60] font-bold print:hidden">Carregando relatório do período...</div>
+        <div className="text-center py-20 text-[#DEAE60] font-bold">Carregando relatório do período...</div>
       ) : (
         <>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
