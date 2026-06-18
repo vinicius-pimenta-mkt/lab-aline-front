@@ -10,7 +10,8 @@ import Services from "./pages/Services";
 import NewService from "./pages/NewService";
 import ServiceDetail from "./pages/ServiceDetail";
 import Reports from "./pages/Reports";
-import Partners from "./pages/Partners"; // <-- Importação adicionada aqui
+import Partners from "./pages/Partners";
+import TsbDashboard from "./pages/TsbDashboard"; // <-- Importação do novo sistema TSB
 import DashboardLayout from "./components/DashboardLayout";
 import { useEffect, useState } from "react";
 
@@ -40,6 +41,8 @@ function Router() {
   return (
     <Switch>
       <Route path="/login" component={Login} />
+      
+      {/* ROTAS DO LABORATÓRIO (Com Menu Lateral) */}
       <Route path="/dashboard">
         {() => (
           <DashboardLayout>
@@ -75,8 +78,6 @@ function Router() {
           </DashboardLayout>
         )}
       </Route>
-      
-      {/* <-- NOVA ROTA ADICIONADA AQUI --> */}
       <Route path="/partners">
         {() => (
           <DashboardLayout>
@@ -85,6 +86,14 @@ function Router() {
         )}
       </Route>
 
+      {/* <-- MICRO-SISTEMA TSB ISOLADO (Sem Menu Lateral) --> */}
+      <Route path="/tsb">
+        {() => (
+          <ProtectedRoute component={TsbDashboard} />
+        )}
+      </Route>
+
+      {/* Rota Padrão e Páginas de Erro */}
       <Route path="/" component={() => <ProtectedRoute component={Dashboard} />} />
       <Route path="/404" component={NotFound} />
       <Route component={NotFound} />
