@@ -191,10 +191,10 @@ export default function TsbDashboard() {
   if (loading && patients.length === 0) return <div className="min-h-screen bg-neutral-50 p-6 text-teal-600 text-center py-20 font-bold flex flex-col items-center justify-center gap-4"><Syringe className="w-10 h-10 animate-spin text-teal-500"/> Carregando Clinic TSB...</div>;
 
   return (
-    // CONTÊINER PRINCIPAL COM IMAGEM DE FUNDO FIXA (image_37a71a.jpg -> fundoalinetsb.jpg)
+    // CONTÊINER PRINCIPAL COM IMAGEM DE FUNDO FIXA (image_37a71a.jpg -> fundoalinetsb.png)
     <div 
       className="min-h-screen w-full bg-cover bg-fixed bg-center font-sans"
-      style={{ backgroundImage: 'url(/fundoalinetsb.jpg)' }}
+      style={{ backgroundImage: 'url(/fundoalinetsb.png)' }}
     >
       {/* OVERLAY BRANCO TRANSLÚCIDO PARA GARANTIR LEITURA E VISUAL CLEAN */}
       <div className="min-h-screen w-full bg-white/85 text-neutral-900 p-4 md:p-8">
