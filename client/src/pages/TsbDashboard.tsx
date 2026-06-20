@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Users, Plus, Printer, CalendarDays, Activity, Syringe, Clock, X, ArrowLeft, Search } from "lucide-react";
+import { Users, Plus, Printer, CalendarDays, Activity, Syringe, Clock, X, LogOut, Search } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { useLocation } from "wouter";
 
@@ -82,8 +82,15 @@ export default function TsbDashboard() {
     }
   };
 
+  const handleLogout = () => {
+    localStorage.removeItem("tsb_token");
+    localStorage.removeItem("tsb_user");
+    toast.success("Sessão encerrada com sucesso.");
+    setLocation("/tsb/login");
+  };
+
   // =========================================================================
-  // CÁLCULOS DO DASHBOARD (Lógica mantida, cores alteradas no JSX)
+  // CÁLCULOS DO DASHBOARD 
   // =========================================================================
   const today = new Date();
   today.setHours(0,0,0,0);
@@ -127,7 +134,7 @@ export default function TsbDashboard() {
   }, []);
 
   // =========================================================================
-  // EXPORTAR PDF CLÍNICO (Layout limpo, header Teal)
+  // EXPORTAR PDF CLÍNICO
   // =========================================================================
   const exportarRelatorioTSB = () => {
     const printWindow = window.open('', '_blank');
@@ -191,15 +198,13 @@ export default function TsbDashboard() {
   if (loading && patients.length === 0) return <div className="min-h-screen bg-neutral-50 p-6 text-teal-600 text-center py-20 font-bold flex flex-col items-center justify-center gap-4"><Syringe className="w-10 h-10 animate-spin text-teal-500"/> Carregando Clinic TSB...</div>;
 
   return (
-    // CONTÊINER PRINCIPAL COM IMAGEM DE FUNDO FIXA (image_37a71a.jpg -> fundoalinetsb.png)
     <div 
       className="min-h-screen w-full bg-cover bg-fixed bg-center font-sans"
       style={{ backgroundImage: 'url(/fundoalinetsb.png)' }}
     >
-      {/* OVERLAY BRANCO TRANSLÚCIDO PARA GARANTIR LEITURA E VISUAL CLEAN */}
       <div className="min-h-screen w-full bg-white/85 text-neutral-900 p-4 md:p-8">
       
-        {/* MODAL DE CADASTRO (Estilo Claro) */}
+        {/* MODAL DE CADASTRO */}
         {isModalOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
             <div className="bg-white border border-neutral-100 p-8 rounded-3xl w-full max-w-lg shadow-2xl shadow-black/10 relative">
@@ -225,7 +230,7 @@ export default function TsbDashboard() {
           </div>
         )}
 
-        {/* HEADER DO MICRO-SISTEMA (Visual Clinic Light) */}
+        {/* HEADER DO MICRO-SISTEMA */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-4 border-b border-neutral-200 pb-8">
           <div className="flex items-center gap-4">
              <img src="/logoaline.png" alt="Logo Aline Antunes" className="w-14 h-14 object-contain" />
@@ -237,12 +242,13 @@ export default function TsbDashboard() {
              </div>
           </div>
           <div className="flex gap-3 w-full md:w-auto">
-            <Button variant="outline" onClick={() => setLocation("/dashboard")} className="border-neutral-300 text-neutral-700 hover:bg-neutral-100 font-bold rounded-xl h-11"><ArrowLeft className="w-4 h-4 mr-2"/> Voltar Laboratório</Button>
+            {/* BOTÃO DE SAIR NOVO AQUI! */}
+            <Button variant="outline" onClick={handleLogout} className="border-neutral-300 text-neutral-700 hover:bg-neutral-100 font-bold rounded-xl h-11"><LogOut className="w-4 h-4 mr-2"/> Sair</Button>
             <Button onClick={() => setIsModalOpen(true)} className="bg-teal-500 hover:bg-teal-600 text-white font-bold rounded-xl h-11 shadow-md shadow-teal-500/20"><Plus className="w-4 h-4 mr-2"/> Novo Paciente</Button>
           </div>
         </div>
 
-        {/* CARDS DE RESUMO (Tons Teal sobre Branco) */}
+        {/* CARDS DE RESUMO */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
           <Card className={`${cardStyle} p-7`}>
             <p className="text-teal-700 text-xs font-bold uppercase tracking-wider mb-2">Atendidos (Últimos 30 dias)</p>
@@ -259,7 +265,7 @@ export default function TsbDashboard() {
           </Card>
         </div>
 
-        {/* PRÓXIMOS 10 ATENDIMENTOS (Estilo Claro) */}
+        {/* PRÓXIMOS 10 ATENDIMENTOS */}
         <Card className={`${cardStyle} mb-12`}>
           <div className="p-6 border-b border-neutral-100 bg-neutral-50/50 flex items-center justify-between">
             <h2 className="font-black text-neutral-950 uppercase tracking-wider text-sm flex items-center gap-2.5">
@@ -288,9 +294,8 @@ export default function TsbDashboard() {
           </div>
         </Card>
 
-        {/* GRÁFICO E TABELA DE RECENTES (Estilo Claro) */}
+        {/* GRÁFICO E TABELA DE RECENTES */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
-          {/* GRÁFICO */}
           <Card className={`${cardStyle} p-7`}>
             <div className="flex flex-col sm:flex-row justify-between sm:items-center mb-8 gap-3">
               <h2 className="font-black text-neutral-950 uppercase text-sm tracking-wider">Volume de Atendimentos (Histórico)</h2>
@@ -316,7 +321,6 @@ export default function TsbDashboard() {
             </div>
           </Card>
 
-          {/* TABELA DIREITA (RECENTES) */}
           <Card className={`${cardStyle} flex flex-col`}>
             <div className="p-6 border-b border-neutral-100 flex justify-between items-center bg-neutral-50/50">
               <h2 className="font-black text-neutral-950 uppercase text-sm tracking-wider">Listagem do Período (Atendidos)</h2>
@@ -340,7 +344,7 @@ export default function TsbDashboard() {
           </Card>
         </div>
 
-        {/* TODOS OS PACIENTES CADASTRADOS (Estilo Claro) */}
+        {/* TODOS OS PACIENTES CADASTRADOS */}
         <Card className={`${cardStyle} mb-6`}>
           <div className="p-6 border-b border-neutral-100 bg-neutral-50/50 flex items-center justify-between gap-4">
             <h2 className="font-black text-neutral-950 uppercase text-sm tracking-wider flex items-center gap-2.5"><Users className="w-5 h-5 text-teal-500"/> Banco Geral de Pacientes Clinic TSB ({patients.length})</h2>
