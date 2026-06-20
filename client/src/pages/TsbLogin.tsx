@@ -34,7 +34,7 @@ export default function TsbLogin() {
   return (
     <div 
       className="min-h-screen w-full flex items-center justify-center bg-cover bg-center bg-fixed p-4 font-sans"
-      style={{ backgroundImage: "url('/fundoalinetsb.jpg')" }}
+      style={{ backgroundImage: "url('/fundoalinetsb.png')" }}
     >
       {/* Overlay translúcido para leitura */}
       <div className="absolute inset-0 bg-white/70 backdrop-blur-sm z-0"></div>
