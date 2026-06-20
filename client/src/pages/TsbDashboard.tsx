@@ -232,9 +232,9 @@ export default function TsbDashboard() {
 
         {/* HEADER DO MICRO-SISTEMA */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-4 border-b border-neutral-200 pb-8">
-          <div className="flex items-center gap-6">
+          <div className="flex items-center gap-4">
              {/* Logo da Aline aumentada de w-14 para w-24 */}
-             <img src="/logoaline.png" alt="Logo Aline Antunes" className="w-24 h-24 object-contain" />
+             <img src="/logoaline.png" alt="Logo Aline Antunes" className="w-22 h-22 object-contain" />
              <div>
                 <h1 className="text-3xl font-black text-teal-700 uppercase tracking-tighter flex items-center gap-3">
                   CLINIC TSB
