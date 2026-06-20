@@ -11,10 +11,10 @@ const api = axios.create({
 
 api.interceptors.request.use(
   (config) => {
-    // Verifica se a requisição é para a área do TSB
+    // 1. O sistema verifica se a requisição está a ir para a área do TSB
     const isTsb = config.url?.includes('/tsb');
     
-    // Se for TSB, pega a chave do TSB. Se for Lab, pega a chave normal.
+    // 2. Se for TSB, ele usa a chave 'tsb_token'. Se não for, usa a chave normal do laboratório.
     const token = localStorage.getItem(isTsb ? 'tsb_token' : 'token');
     
     if (token) {
@@ -31,9 +31,10 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response && error.response.status === 401) {
-      // Verifica de qual sistema veio o erro para redirecionar para o Login certo
+      // 3. Se o acesso for bloqueado (401), ele descobre de onde veio o erro
       const isTsb = error.config.url?.includes('/tsb');
       
+      // 4. E expulsa o usuário apenas da tela correspondente, sem afetar a outra
       if (isTsb) {
         localStorage.removeItem('tsb_token');
         localStorage.removeItem('tsb_user');
