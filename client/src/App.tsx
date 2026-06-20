@@ -11,10 +11,12 @@ import NewService from "./pages/NewService";
 import ServiceDetail from "./pages/ServiceDetail";
 import Reports from "./pages/Reports";
 import Partners from "./pages/Partners";
-import TsbDashboard from "./pages/TsbDashboard"; // <-- Importação do novo sistema TSB
+import TsbDashboard from "./pages/TsbDashboard";
+import TsbLogin from "./pages/TsbLogin"; // <-- Importação do Login TSB
 import DashboardLayout from "./components/DashboardLayout";
 import { useEffect, useState } from "react";
 
+// Proteção do Laboratório (Usa o 'token' normal)
 function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
   const [, setLocation] = useLocation();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -37,12 +39,35 @@ function ProtectedRoute({ component: Component }: { component: React.ComponentTy
   return isAuthenticated ? <Component /> : null;
 }
 
+// Proteção Exclusiva da Clínica TSB (Usa o 'tsb_token')
+function TsbProtectedRoute({ component: Component }: { component: React.ComponentType }) {
+  const [, setLocation] = useLocation();
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const token = localStorage.getItem("tsb_token");
+    if (token) {
+      setIsAuthenticated(true);
+    } else {
+      setLocation("/tsb/login");
+    }
+    setLoading(false);
+  }, [setLocation]);
+
+  if (loading) {
+    return <div className="min-h-screen flex items-center justify-center text-teal-600 font-bold">Carregando Clinic...</div>;
+  }
+
+  return isAuthenticated ? <Component /> : null;
+}
+
 function Router() {
   return (
     <Switch>
       <Route path="/login" component={Login} />
+      <Route path="/tsb/login" component={TsbLogin} /> {/* <-- Rota do Login TSB */}
       
-      {/* ROTAS DO LABORATÓRIO (Com Menu Lateral) */}
       <Route path="/dashboard">
         {() => (
           <DashboardLayout>
@@ -86,14 +111,13 @@ function Router() {
         )}
       </Route>
 
-      {/* <-- MICRO-SISTEMA TSB ISOLADO (Sem Menu Lateral) --> */}
+      {/* <-- MICRO-SISTEMA TSB ISOLADO (Com Proteção Exclusiva) --> */}
       <Route path="/tsb">
         {() => (
-          <ProtectedRoute component={TsbDashboard} />
+          <TsbProtectedRoute component={TsbDashboard} />
         )}
       </Route>
 
-      {/* Rota Padrão e Páginas de Erro */}
       <Route path="/" component={() => <ProtectedRoute component={Dashboard} />} />
       <Route path="/404" component={NotFound} />
       <Route component={NotFound} />
