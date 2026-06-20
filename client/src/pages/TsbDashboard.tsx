@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Users, Plus, Printer, CalendarDays, Activity, Syringe, Clock, X, LogOut, Search } from "lucide-react";
+import { Users, Plus, Printer, CalendarDays, Syringe, Clock, X, LogOut, Search, Trash2, RefreshCw } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { useLocation } from "wouter";
 
@@ -26,11 +26,9 @@ export default function TsbDashboard() {
   const [patients, setPatients] = useState<TsbPatient[]>([]);
   const [loading, setLoading] = useState(true);
   
-  // Controles
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [periodFilter, setPeriodFilter] = useState("30"); // 7, 15, 30
+  const [periodFilter, setPeriodFilter] = useState("30"); 
   
-  // Estado do formulário
   const defaultProcedure = "Limpeza Profissional (TSB)";
   const [formData, setFormData] = useState({
     nome: "", telefone: "", procedimento: defaultProcedure, recorrencia_meses: "4", data_inicio: new Date().toISOString().split('T')[0], ultimo_atendimento: new Date().toISOString().split('T')[0], proximo_atendimento: ""
@@ -38,7 +36,6 @@ export default function TsbDashboard() {
 
   useEffect(() => { fetchData(); }, []);
 
-  // AUTO-CÁLCULO DO PRÓXIMO ATENDIMENTO (Reativo)
   useEffect(() => {
     if (formData.ultimo_atendimento && formData.recorrencia_meses) {
       try {
@@ -47,9 +44,7 @@ export default function TsbDashboard() {
           date.setMonth(date.getMonth() + parseInt(formData.recorrencia_meses) || 0);
           setFormData(prev => ({ ...prev, proximo_atendimento: date.toISOString().split('T')[0] }));
         }
-      } catch (e) {
-        console.error("Erro ao calcular data:", e);
-      }
+      } catch (e) {}
     }
   }, [formData.ultimo_atendimento, formData.recorrencia_meses]);
 
@@ -70,15 +65,35 @@ export default function TsbDashboard() {
       await api.post("/tsb", { ...formData, recorrencia_meses: parseInt(formData.recorrencia_meses) });
       toast.success("Paciente cadastrado com sucesso!");
       setIsModalOpen(false);
-      // Reseta formulário
-      setFormData({
-        nome: "", telefone: "", procedimento: defaultProcedure, recorrencia_meses: "4", data_inicio: new Date().toISOString().split('T')[0], ultimo_atendimento: new Date().toISOString().split('T')[0], proximo_atendimento: ""
-      });
+      setFormData({ nome: "", telefone: "", procedimento: defaultProcedure, recorrencia_meses: "4", data_inicio: new Date().toISOString().split('T')[0], ultimo_atendimento: new Date().toISOString().split('T')[0], proximo_atendimento: "" });
       fetchData();
     } catch (error) { 
-      toast.error("Erro ao cadastrar paciente. Verifique os dados."); 
-    } finally {
-      setLoading(false);
+      toast.error("Erro ao cadastrar paciente."); 
+    } finally { setLoading(false); }
+  };
+
+  // ==========================================
+  // NOVAS FUNÇÕES: APAGAR E RENOVAR
+  // ==========================================
+  const handleDelete = async (id: number) => {
+    if (!confirm("Tem a certeza que deseja apagar este paciente de forma permanente?")) return;
+    try {
+      await api.delete(`/tsb/${id}`);
+      toast.success("Paciente removido com sucesso!");
+      fetchData();
+    } catch (error) {
+      toast.error("Erro ao remover paciente.");
+    }
+  };
+
+  const handleRenew = async (patient: TsbPatient) => {
+    if (!confirm(`O paciente ${patient.nome} compareceu? Isso irá marcar a data de hoje como concluída e calcular o próximo retorno automaticamente.`)) return;
+    try {
+      await api.put(`/tsb/${patient.id}/renovar`);
+      toast.success("Ciclo de atendimento renovado!");
+      fetchData();
+    } catch (error) {
+      toast.error("Erro ao renovar atendimento.");
     }
   };
 
@@ -89,42 +104,31 @@ export default function TsbDashboard() {
     setLocation("/tsb/login");
   };
 
-  // =========================================================================
-  // CÁLCULOS DO DASHBOARD 
-  // =========================================================================
+  // ==========================================
+  // CÁLCULOS
+  // ==========================================
   const today = new Date();
   today.setHours(0,0,0,0);
   
   const thirtyDaysAgo = new Date(today); thirtyDaysAgo.setDate(today.getDate() - 30);
   const thirtyDaysFuture = new Date(today); thirtyDaysFuture.setDate(today.getDate() + 30);
 
-  // Atendimentos realizados nos últimos 30 dias
   const doneLast30 = patients.filter(p => {
     const ultimo = new Date(p.ultimo_atendimento + 'T00:00:00');
     return ultimo >= thirtyDaysAgo && ultimo <= today;
   }).length;
   
-  // Próximos atendimentos
   const futureAppointments = patients.filter(p => new Date(p.proximo_atendimento + 'T00:00:00') >= today);
-  
-  // Atendimentos previstos para os próximos 30 dias
   const next30 = futureAppointments.filter(p => new Date(p.proximo_atendimento + 'T00:00:00') <= thirtyDaysFuture).length;
-  
-  // Fila dos próximos 10
   const next10Patients = [...futureAppointments].sort((a,b) => new Date(a.proximo_atendimento).getTime() - new Date(b.proximo_atendimento).getTime()).slice(0, 10);
-  
-  // Data do próximo atendimento mais imediato
   const nextDateStr = next10Patients.length > 0 ? new Date(next10Patients[0].proximo_atendimento + 'T00:00:00').toLocaleDateString('pt-BR') : "--";
 
-  // Filtro de Histórico Recente (Gráfico e Tabela Direita)
   const recentLimitDate = new Date(today);
   recentLimitDate.setDate(today.getDate() - parseInt(periodFilter));
   
-  // Pacientes atendidos recentemente (ordenados por data decrescente)
   const recentPatients = patients.filter(p => new Date(p.ultimo_atendimento + 'T00:00:00') >= recentLimitDate && new Date(p.ultimo_atendimento + 'T00:00:00') <= today)
     .sort((a,b) => new Date(b.ultimo_atendimento).getTime() - new Date(a.ultimo_atendimento).getTime());
 
-  // Dados do Gráfico (Mesma lógica)
   const chartData = [...recentPatients].reverse().reduce((acc: any[], p) => {
     const dateStr = new Date(p.ultimo_atendimento + 'T00:00:00').toLocaleDateString('pt-BR', {day: '2-digit', month: '2-digit'});
     const existing = acc.find(item => item.data === dateStr);
@@ -133,9 +137,6 @@ export default function TsbDashboard() {
     return acc;
   }, []);
 
-  // =========================================================================
-  // EXPORTAR PDF CLÍNICO
-  // =========================================================================
   const exportarRelatorioTSB = () => {
     const printWindow = window.open('', '_blank');
     if (!printWindow) return toast.error("O bloqueador de pop-ups impediu a impressão. Permita pop-ups.");
@@ -155,7 +156,7 @@ export default function TsbDashboard() {
     });
 
     const htmlContent = `
-      <!DOCTYPE html><html><head><title>Relatorio_Atendimentos_TSB_Aline_Antunes</title>
+      <!DOCTYPE html><html><head><title>Relatorio_Atendimentos_TSB_Aline</title>
         <style>
           @page { margin: 15mm; size: A4 portrait; }
           body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #333; font-size: 11px; line-height: 1.5; padding: 10px; }
@@ -187,9 +188,6 @@ export default function TsbDashboard() {
     setTimeout(() => { printWindow.print(); printWindow.close(); }, 250);
   };
 
-  // =========================================================================
-  // ESTILOS CLAROS (CLINIC LIGHT)
-  // =========================================================================
   const inputStyle = "bg-white border-neutral-200 text-neutral-900 placeholder:text-neutral-400 focus-visible:ring-teal-500/50 focus-visible:border-teal-500 transition-all";
   const cardStyle = "bg-white border-neutral-100 shadow-lg shadow-neutral-100/50 rounded-2xl overflow-hidden";
   const tableHeaderStyle = "p-4 text-xs font-bold text-neutral-600 uppercase tracking-wider";
@@ -198,10 +196,7 @@ export default function TsbDashboard() {
   if (loading && patients.length === 0) return <div className="min-h-screen bg-neutral-50 p-6 text-teal-600 text-center py-20 font-bold flex flex-col items-center justify-center gap-4"><Syringe className="w-10 h-10 animate-spin text-teal-500"/> Carregando Clinic TSB...</div>;
 
   return (
-    <div 
-      className="min-h-screen w-full bg-cover bg-fixed bg-center font-sans"
-      style={{ backgroundImage: 'url(/fundoalinetsb.png)' }}
-    >
+    <div className="min-h-screen w-full bg-cover bg-fixed bg-center font-sans" style={{ backgroundImage: "url('/fundoalinetsb.png')" }}>
       <div className="min-h-screen w-full bg-white/85 text-neutral-900 p-4 md:p-8">
       
         {/* MODAL DE CADASTRO */}
@@ -233,7 +228,6 @@ export default function TsbDashboard() {
         {/* HEADER DO MICRO-SISTEMA */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-4 border-b border-neutral-200 pb-8">
           <div className="flex items-center gap-4">
-             {/* Logo da Aline aumentada de w-14 para w-24 */}
              <img src="/logoaline.png" alt="Logo Aline Antunes" className="w-22 h-22 object-contain" />
              <div>
                 <h1 className="text-3xl font-black text-teal-700 uppercase tracking-tighter flex items-center gap-3">
@@ -243,7 +237,6 @@ export default function TsbDashboard() {
              </div>
           </div>
           <div className="flex gap-3 w-full md:w-auto">
-            {/* BOTÃO DE SAIR NOVO AQUI! */}
             <Button variant="outline" onClick={handleLogout} className="border-neutral-300 text-neutral-700 hover:bg-neutral-100 font-bold rounded-xl h-11"><LogOut className="w-4 h-4 mr-2"/> Sair</Button>
             <Button onClick={() => setIsModalOpen(true)} className="bg-teal-500 hover:bg-teal-600 text-white font-bold rounded-xl h-11 shadow-md shadow-teal-500/20"><Plus className="w-4 h-4 mr-2"/> Novo Paciente</Button>
           </div>
@@ -345,7 +338,7 @@ export default function TsbDashboard() {
           </Card>
         </div>
 
-        {/* TODOS OS PACIENTES CADASTRADOS */}
+        {/* TODOS OS PACIENTES CADASTRADOS (Com os novos botões Ações) */}
         <Card className={`${cardStyle} mb-6`}>
           <div className="p-6 border-b border-neutral-100 bg-neutral-50/50 flex items-center justify-between gap-4">
             <h2 className="font-black text-neutral-950 uppercase text-sm tracking-wider flex items-center gap-2.5"><Users className="w-5 h-5 text-teal-500"/> Banco Geral de Pacientes Clinic TSB ({patients.length})</h2>
@@ -356,7 +349,16 @@ export default function TsbDashboard() {
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-left">
-              <thead className="bg-neutral-100/70 border-b border-neutral-100"><tr><th className={`${tableHeaderStyle} w-20`}>ID</th><th className={tableHeaderStyle}>Nome Completo</th><th className={tableHeaderStyle}>Procedimento Padrão</th><th className={`${tableHeaderStyle} text-right`}>Último Atendimento</th></tr></thead>
+              <thead className="bg-neutral-100/70 border-b border-neutral-100">
+                <tr>
+                  <th className={`${tableHeaderStyle} w-20`}>ID</th>
+                  <th className={tableHeaderStyle}>Nome Completo</th>
+                  <th className={tableHeaderStyle}>Procedimento</th>
+                  <th className={`${tableHeaderStyle} text-right`}>Último Atendimento</th>
+                  {/* Coluna nova para Ações */}
+                  <th className={`${tableHeaderStyle} text-center w-28`}>Ações</th>
+                </tr>
+              </thead>
               <tbody>
                 {patients.sort((a,b) => a.nome.localeCompare(b.nome)).map(p => (
                   <tr key={p.id} className={tableRowStyle}>
@@ -364,9 +366,19 @@ export default function TsbDashboard() {
                     <td className="p-4 font-bold text-neutral-950 text-sm">{p.nome}</td>
                     <td className="p-4 text-neutral-700 text-sm">{p.procedimento}</td>
                     <td className="p-4 text-right text-neutral-700 text-sm font-medium bg-neutral-50/50">{new Date(p.ultimo_atendimento + 'T00:00:00').toLocaleDateString('pt-BR')}</td>
+                    
+                    {/* Botões de Ação na Tabela */}
+                    <td className="p-4 text-center space-x-2">
+                      <Button onClick={() => handleRenew(p)} size="icon" variant="ghost" className="h-8 w-8 text-teal-600 hover:bg-teal-50" title="Confirmar Retorno do Paciente">
+                        <RefreshCw className="w-4 h-4"/>
+                      </Button>
+                      <Button onClick={() => handleDelete(p.id)} size="icon" variant="ghost" className="h-8 w-8 text-red-500 hover:bg-red-50" title="Apagar Paciente">
+                        <Trash2 className="w-4 h-4"/>
+                      </Button>
+                    </td>
                   </tr>
                 ))}
-                 {patients.length === 0 && <tr><td colSpan={4} className="p-12 text-center text-neutral-500 text-sm">Nenhum paciente cadastrado no Clinic TSB ainda.</td></tr>}
+                 {patients.length === 0 && <tr><td colSpan={5} className="p-12 text-center text-neutral-500 text-sm">Nenhum paciente cadastrado no Clinic TSB ainda.</td></tr>}
               </tbody>
             </table>
           </div>
