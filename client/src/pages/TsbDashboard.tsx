@@ -232,11 +232,12 @@ export default function TsbDashboard() {
 
         {/* HEADER DO MICRO-SISTEMA */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-4 border-b border-neutral-200 pb-8">
-          <div className="flex items-center gap-4">
-             <img src="/logoaline.png" alt="Logo Aline Antunes" className="w-14 h-14 object-contain" />
+          <div className="flex items-center gap-6">
+             {/* Logo da Aline aumentada de w-14 para w-24 */}
+             <img src="/logoaline.png" alt="Logo Aline Antunes" className="w-24 h-24 object-contain" />
              <div>
                 <h1 className="text-3xl font-black text-teal-700 uppercase tracking-tighter flex items-center gap-3">
-                  <Activity className="w-8 h-8 text-teal-500"/> CLINIC TSB
+                  CLINIC TSB
                 </h1>
                 <p className="text-neutral-600 text-base mt-1">Gestão de Profilaxia e Recorrência - Aline Antunes</p>
              </div>
