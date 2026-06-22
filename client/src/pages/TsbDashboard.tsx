@@ -35,6 +35,9 @@ export default function TsbDashboard() {
   });
 
   useEffect(() => { fetchData(); }, []);
+  useEffect(() => {
+    document.title = "Aline Antunes | Clinic TSB";
+  }, []);
 
   useEffect(() => {
     if (formData.ultimo_atendimento && formData.recorrencia_meses) {
