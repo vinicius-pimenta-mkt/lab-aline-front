@@ -11,8 +11,11 @@ export default function TsbLogin() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+
+  // Bloco corrigido e fechado corretamente!
   useEffect(() => {
-    document.title = "Login | Aline TSB";
+    document.title = "Login | Clinic TSB";
+  }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -36,7 +39,7 @@ export default function TsbLogin() {
   return (
     <div 
       className="min-h-screen w-full flex items-center justify-center bg-cover bg-center bg-fixed p-4 font-sans"
-      style={{ backgroundImage: "url('/fundoalinetsb.png')" }}
+      style={{ backgroundImage: "url('/fundoalinetsb.jpg')" }}
     >
       {/* Overlay translúcido para leitura */}
       <div className="absolute inset-0 bg-white/70 backdrop-blur-sm z-0"></div>
@@ -60,7 +63,6 @@ export default function TsbLogin() {
               required 
               value={username} 
               onChange={(e) => setUsername(e.target.value)}
-              // A classe text-neutral-900 abaixo garante que o texto fique preto/escuro!
               className="h-12 bg-neutral-50 text-neutral-900 border-neutral-200 focus-visible:ring-teal-500" 
               placeholder="Digite seu usuário"
             />
@@ -72,7 +74,6 @@ export default function TsbLogin() {
               type="password" 
               value={password} 
               onChange={(e) => setPassword(e.target.value)}
-              // A classe text-neutral-900 abaixo garante que o texto fique preto/escuro!
               className="h-12 bg-neutral-50 text-neutral-900 border-neutral-200 focus-visible:ring-teal-500" 
               placeholder="••••••"
             />
