@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import api from "../lib/api";
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,8 @@ export default function TsbLogin() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  useEffect(() => {
+    document.title = "Login | Aline TSB";
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
