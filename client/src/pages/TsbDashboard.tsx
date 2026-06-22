@@ -34,10 +34,12 @@ export default function TsbDashboard() {
     nome: "", telefone: "", procedimento: defaultProcedure, recorrencia_meses: "4", data_inicio: new Date().toISOString().split('T')[0], ultimo_atendimento: new Date().toISOString().split('T')[0], proximo_atendimento: ""
   });
 
-  useEffect(() => { fetchData(); }, []);
+  // Título da aba corrigido
   useEffect(() => {
     document.title = "Aline Antunes | Clinic TSB";
   }, []);
+
+  useEffect(() => { fetchData(); }, []);
 
   useEffect(() => {
     if (formData.ultimo_atendimento && formData.recorrencia_meses) {
@@ -199,7 +201,8 @@ export default function TsbDashboard() {
   if (loading && patients.length === 0) return <div className="min-h-screen bg-neutral-50 p-6 text-teal-600 text-center py-20 font-bold flex flex-col items-center justify-center gap-4"><Syringe className="w-10 h-10 animate-spin text-teal-500"/> Carregando Clinic TSB...</div>;
 
   return (
-    <div className="min-h-screen w-full bg-cover bg-fixed bg-center font-sans" style={{ backgroundImage: "url('/fundoalinetsb.png')" }}>
+    {/* Corrigida a imagem de fundo para .jpg */}
+    <div className="min-h-screen w-full bg-cover bg-fixed bg-center font-sans" style={{ backgroundImage: "url('/fundoalinetsb.jpg')" }}>
       <div className="min-h-screen w-full bg-white/85 text-neutral-900 p-4 md:p-8">
       
         {/* MODAL DE CADASTRO */}
@@ -230,8 +233,9 @@ export default function TsbDashboard() {
 
         {/* HEADER DO MICRO-SISTEMA */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-4 border-b border-neutral-200 pb-8">
-          <div className="flex items-center gap-4">
-             <img src="/logoaline.png" alt="Logo Aline Antunes" className="w-22 h-22 object-contain" />
+          <div className="flex items-center gap-6">
+             {/* Tamanho da Logo Corrigido para as classes corretas do Tailwind (w-24 h-24) */}
+             <img src="/logoaline.png" alt="Logo Aline Antunes" className="w-24 h-24 object-contain" />
              <div>
                 <h1 className="text-3xl font-black text-teal-700 uppercase tracking-tighter flex items-center gap-3">
                   CLINIC TSB
