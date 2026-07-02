@@ -190,23 +190,23 @@ export default function Partners() {
     let totalMes = monthServices.reduce((acc: number, curr: any) => acc + Number(curr.valor_bruto), 0);
     let rowsHtml = '';
     
-    // Lista de Serviços Padrão
+    // Lista de Serviços Padrão do Laboratório
     monthServices.forEach((s: any, idx: number) => {
       const dataFormatada = new Date(s.data_saida + "T00:00:00").toLocaleDateString('pt-BR');
       const valorFormatado = Number(s.valor_bruto).toFixed(2).replace('.', ',');
       
       rowsHtml += `
         <tr>
-          <td class="center">${String(idx + 1).padStart(2, '0')}</td>
+          <td class="center" style="color: #666;">${String(idx + 1).padStart(2, '0')}</td>
           <td>${dataFormatada}</td>
-          <td>${s.procedimento.toUpperCase()}</td>
+          <td><strong>${s.procedimento.toUpperCase()}</strong></td>
           <td class="center">${s.forma_pagamento || '-'}</td>
-          <td class="right">R$ ${valorFormatado}</td>
+          <td class="right" style="font-weight: bold;">R$ ${valorFormatado}</td>
         </tr>
       `;
     });
 
-    // Adiciona os Custos Extras selecionados na tabela
+    // Adiciona os Custos Extras na listagem
     const validExtras = extraCosts.filter(e => e.descricao && e.valor);
     validExtras.forEach((extra) => {
       const v = Number(extra.valor.replace(',', '.'));
@@ -215,11 +215,11 @@ export default function Partners() {
       
       rowsHtml += `
         <tr>
-          <td class="center text-neutral-400">-</td>
+          <td class="center" style="color: #DEAE60;">•</td>
           <td>-</td>
-          <td style="color: #666; font-style: italic;">[Custo Operacional Extra] ${extra.descricao.toUpperCase()}</td>
+          <td style="color: #666; font-style: italic;">[Custo Extra] ${extra.descricao.toUpperCase()}</td>
           <td class="center">-</td>
-          <td class="right" style="color: #666;">R$ ${valorExtraFormatado}</td>
+          <td class="right" style="color: #666; font-weight: bold;">R$ ${valorExtraFormatado}</td>
         </tr>
       `;
     });
@@ -231,35 +231,48 @@ export default function Partners() {
         <title>Relatorio_${dentist.nome}_${monthYear.replace('/', '-')}</title>
         <style>
           @page { margin: 15mm; size: A4 portrait; }
-          body { font-family: Arial, sans-serif; font-size: 12px; line-height: 1.5; padding: 10px; }
-          .header { border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 20px; }
-          .header h1 { font-size: 16px; margin: 0 0 5px 0; font-weight: bold; }
-          .info { margin-bottom: 30px; background: #f9f9f9; padding: 15px; border: 1px solid #ddd; border-radius: 8px;}
-          table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
-          th { border-top: 1px solid #000; border-bottom: 1px solid #000; padding: 6px; text-align: left; font-size: 11px; }
-          td { padding: 6px; border-bottom: 1px dashed #ccc; font-size: 11px; }
+          body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #333; font-size: 11px; line-height: 1.5; padding: 10px; }
+          .header { border-bottom: 2px solid #DEAE60; padding-bottom: 12px; margin-bottom: 25px; display: flex; justify-content: space-between; align-items: center; }
+          .header h1 { font-size: 18px; margin: 0; font-weight: 900; text-transform: uppercase; letter-spacing: -0.5px; color: #fff; }
+          .header p { margin: 2px 0 0 0; font-size: 11px; color: #a3a3a3; text-transform: uppercase; tracking-widest: 1px; }
+          .logo-area { background: #171717; padding: 15px 20px; border-radius: 10px; display: flex; align-items: center; gap: 15px; }
+          .info { margin-bottom: 25px; background: #fafafa; padding: 15px; border: 1px solid #e5e5e7; border-radius: 12px; }
+          .info p { margin: 4px 0; font-size: 12px; color: #1f1f23; }
+          table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+          th { background-color: #fafafa; border-top: 1px solid #111; border-bottom: 2px solid #111; padding: 8px; text-align: left; font-size: 10px; text-transform: uppercase; font-weight: bold; color: #555; }
+          td { padding: 9px 8px; border-bottom: 1px dashed #e5e5e7; font-size: 11px; }
+          tr:hover { background-color: #fcfcfc; }
           .center { text-align: center; } .right { text-align: right; }
-          .summary { width: 250px; float: right; }
-          .summary-total { display: flex; justify-content: space-between; font-weight: bold; font-size: 14px; border-top: 2px solid #000; padding-top: 6px; margin-top: 4px; }
+          .summary-box { width: 260px; float: right; margin-top: 20px; background: #fff; border-radius: 8px; }
+          .summary-total { display: flex; justify-content: space-between; font-weight: 900; font-size: 15px; border-top: 2px solid #111; padding-top: 8px; color: #000; }
           .clear { clear: both; }
+          .footer { text-align: center; margin-top: 50px; font-size: 10px; color: #888; border-top: 1px solid #e5e7eb; padding-top: 12px; }
         </style>
       </head>
       <body>
         <div class="header">
-          <h1>ALINE ANTUNES PRÓTESE ODONTOLÓGICA</h1>
-          <p>Relatório de Fechamento Mensal</p>
+          <div class="logo-area">
+            <img src="/logoaline.png" style="width: 45px; height: 44px; object-contain: true;" />
+            <div>
+              <h1>ALINE ANTUNES</h1>
+              <p>Prótese Odontológica</p>
+            </div>
+          </div>
+          <div style="text-align: right; font-size: 10px; color: #666; font-weight: bold;">EMISSÃO: ${new Date().toLocaleDateString('pt-BR')}</div>
         </div>
+        
         <div class="info">
-          <p><strong>Dentista:</strong> ${dentist.nome.toUpperCase()}</p>
-          <p><strong>Período:</strong> Mês ${monthYear}</p>
+          <p><strong>DENTISTA PARCEIRO:</strong> ${dentist.nome.toUpperCase()}</p>
+          <p><strong>PERÍODO DE FECHAMENTO:</strong> Mês ${monthYear}</p>
         </div>
+
         <table>
           <thead>
             <tr>
               <th class="center" style="width: 5%;">#</th>
-              <th style="width: 15%;">Data</th>
-              <th style="width: 45%;">Descrição do Serviço / Custo</th>
-              <th class="center" style="width: 15%;">Pagamento</th>
+              <th style="width: 15%;">Data Saída</th>
+              <th style="width: 45%;">Procedimento Executado</th>
+              <th class="center" style="width: 15%;">Forma Pagamento</th>
               <th class="right" style="width: 20%;">Valor Cobrado</th>
             </tr>
           </thead>
@@ -267,14 +280,17 @@ export default function Partners() {
             ${rowsHtml}
           </tbody>
         </table>
-        <div class="summary">
+
+        <div class="summary-box">
           <div class="summary-total">
-            <span>TOTAL A PAGAR:</span>
+            <span>TOTAL DO FECHAMENTO:</span>
             <span>R$ ${totalMes.toFixed(2).replace('.', ',')}</span>
           </div>
         </div>
-        <div class="clear" style="padding-top: 40px; text-align: center; font-size: 10px; color: #666;">
-          <p>Gerado em ${new Date().toLocaleDateString('pt-BR')} pelo Sistema Aline Antunes.</p>
+        <div class="clear"></div>
+
+        <div class="footer">
+          <p>Relatório emitido eletronicamente • Sistema de Gestão Aline Antunes Prótese Odontológica</p>
         </div>
       </body>
       </html>
@@ -283,12 +299,7 @@ export default function Partners() {
     printWindow.document.write(htmlContent);
     printWindow.document.close();
     printWindow.focus();
-    
-    setTimeout(() => { 
-      printWindow.print(); 
-      printWindow.close(); 
-      setIsExtraCostsModalOpen(false); 
-    }, 250);
+    setTimeout(() => { printWindow.print(); printWindow.close(); setIsExtraCostsModalOpen(false); }, 250);
   };
 
   // ==========================================
@@ -343,7 +354,7 @@ export default function Partners() {
   const printColaboradorPdf = async (colaborador: any, monthYear: string, pontos: any[], isPayment: boolean) => {
     if (isPayment) {
       if (!paymentValue || isNaN(Number(paymentValue.replace(',','.')))) {
-        return toast.error("Insira um valor válido.");
+        return toast.error("Insira um valor válido para fechar o pagamento.");
       }
       try {
         await api.post("/colaboradores/pagamento", { 
@@ -351,10 +362,10 @@ export default function Partners() {
           valor: Number(paymentValue.replace(',','.')), 
           mes_ref: monthYear 
         });
-        toast.success("Custo lançado com sucesso no fluxo financeiro geral!");
+        toast.success("Custo de folha de pagamento lançado nos Relatórios!");
         setIsPaymentModalOpen(false);
       } catch(e) { 
-        return toast.error("Erro ao lançar custo no sistema."); 
+        return toast.error("Erro ao lançar custo."); 
       }
     }
 
@@ -365,11 +376,11 @@ export default function Partners() {
     pontos.forEach((p: any, idx: number) => {
       rowsHtml += `
         <tr>
-          <td class="center">${String(idx + 1).padStart(2, '0')}</td>
+          <td class="center" style="color: #666;">${String(idx + 1).padStart(2, '0')}</td>
           <td>${new Date(p.data + "T00:00:00").toLocaleDateString('pt-BR')}</td>
-          <td class="center">${p.entrada || '-'}</td>
-          <td class="center">${p.saida || '-'}</td>
-          <td class="center">${calcHoras(p.entrada, p.saida)}</td>
+          <td class="center" style="font-weight: bold;">${p.entrada || '-'}</td>
+          <td class="center" style="font-weight: bold;">${p.saida || '-'}</td>
+          <td class="center" style="color: #555;">${calcHoras(p.entrada, p.saida)}</td>
         </tr>
       `;
     });
@@ -378,53 +389,68 @@ export default function Partners() {
       <!DOCTYPE html>
       <html>
       <head>
-        <title>Espelho_Ponto_${colaborador.nome}</title>
+        <title>Espelho_Ponto_${colaborador.nome}_${monthYear.replace('/', '-')}</title>
         <style>
           @page { margin: 15mm; size: A4 portrait; }
-          body { font-family: Arial, sans-serif; font-size: 12px; line-height: 1.5; padding: 10px; }
-          .header { border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 20px; text-align:center;}
-          .header h1 { font-size: 16px; margin: 0 0 5px 0; font-weight: bold; text-transform: uppercase;}
-          .info { margin-bottom: 30px; background: #f9f9f9; padding: 15px; border: 1px solid #ddd; border-radius: 8px;}
-          table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
-          th { border-top: 1px solid #000; border-bottom: 1px solid #000; padding: 6px; text-align: left; font-size: 11px; }
-          td { padding: 6px; border-bottom: 1px dashed #ccc; font-size: 11px; }
+          body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #333; font-size: 11px; line-height: 1.5; padding: 10px; }
+          .header { border-bottom: 2px solid #DEAE60; padding-bottom: 12px; margin-bottom: 25px; display: flex; justify-content: space-between; align-items: center; }
+          .header h1 { font-size: 18px; margin: 0; font-weight: 900; text-transform: uppercase; letter-spacing: -0.5px; color: #fff; }
+          .header p { margin: 2px 0 0 0; font-size: 11px; color: #a3a3a3; text-transform: uppercase; }
+          .logo-area { background: #171717; padding: 15px 20px; border-radius: 10px; display: flex; align-items: center; gap: 15px; }
+          .info { margin-bottom: 25px; background: #fafafa; padding: 15px; border: 1px solid #e5e7eb; border-radius: 12px; }
+          .info p { margin: 4px 0; font-size: 12px; }
+          table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+          th { background-color: #fafafa; border-top: 1px solid #111; border-bottom: 2px solid #111; padding: 8px; text-align: left; font-size: 10px; text-transform: uppercase; font-weight: bold; }
+          td { padding: 9px 8px; border-bottom: 1px dashed #e5e7eb; font-size: 11px; }
           .center { text-align: center; } .right { text-align: right; }
-          .summary { width: 300px; float: right; background: #f0fdfa; padding: 10px; border: 1px solid #14b8a6; border-radius: 8px;}
+          .summary-box { width: 280px; float: right; margin-top: 20px; background: #f0fdfa; padding: 12px; border: 1px solid #14b8a6; border-radius: 8px; }
+          .summary-total { display: flex; justify-content: space-between; font-weight: 900; font-size: 14px; color: #0f766e; }
+          .clear { clear: both; }
         </style>
       </head>
       <body>
         <div class="header">
-          <h1>ALINE ANTUNES PRÓTESE ODONTOLÓGICA</h1>
-          <p>Espelho de Ponto e Pagamento de Colaborador</p>
+          <div class="logo-area">
+            <img src="/logoaline.png" style="width: 45px; height: 44px;" />
+            <div>
+              <h1>ALINE ANTUNES</h1>
+              <p>Recursos Humanos (RH)</p>
+            </div>
+          </div>
+          <div style="text-align: right; font-size: 10px; color: #666;">FECHAMENTO: ${new Date().toLocaleDateString('pt-BR')}</div>
         </div>
+        
         <div class="info">
-          <p><strong>Nome:</strong> ${colaborador.nome.toUpperCase()}</p>
-          <p><strong>Cargo:</strong> ${colaborador.cargo || 'Não definido'}</p>
-          <p><strong>Período:</strong> Mês ${monthYear}</p>
+          <p><strong>COLABORADOR:</strong> ${colaborador.nome.toUpperCase()}</p>
+          <p><strong>CARGO/FUNÇÃO:</strong> ${colaborador.cargo || 'Não especificado'}</p>
+          <p><strong>PERÍODO DE APURAÇÃO:</strong> Mês ${monthYear}</p>
         </div>
+
         <table>
           <thead>
             <tr>
               <th class="center" style="width: 5%;">#</th>
-              <th>Data</th>
-              <th class="center">Entrada</th>
-              <th class="center">Saída</th>
-              <th class="center">Horas Trabalhadas</th>
+              <th style="width: 25%;">Data do Expediente</th>
+              <th class="center" style="width: 20%;">Horário Entrada</th>
+              <th class="center" style="width: 20%;">Horário Saída</th>
+              <th class="center" style="width: 30%;">Total de Horas do Dia</th>
             </tr>
           </thead>
           <tbody>
             ${rowsHtml}
           </tbody>
         </table>
+
         ${isPayment ? `
-          <div class="summary">
-            <div style="display:flex; justify-content:space-between; font-weight:bold; font-size:16px; color:#0f766e;">
-              <span>SALÁRIO A PAGAR:</span>
+          <div class="summary-box">
+            <div class="summary-total">
+              <span>SALÁRIO LÍQUIDO A PAGAR:</span>
               <span>R$ ${Number(paymentValue.replace(',','.')).toFixed(2).replace('.', ',')}</span>
             </div>
-            <p style="font-size:9px; color:#666; margin-top:5px; text-align:center;">Este valor foi registado automaticamente nos custos do sistema.</p>
+            <p style="font-size: 9px; color: #666; margin-top: 6px; text-align: center; margin-bottom: 0;">Lançado automaticamente nas despesas operacionais.</p>
           </div>
         ` : ''}
+        <div class="clear"></div>
       </body>
       </html>
     `;
@@ -432,11 +458,7 @@ export default function Partners() {
     printWindow.document.write(htmlContent);
     printWindow.document.close();
     printWindow.focus();
-    
-    setTimeout(() => { 
-      printWindow.print(); 
-      printWindow.close(); 
-    }, 250);
+    setTimeout(() => { printWindow.print(); printWindow.close(); }, 250);
   };
 
   const inputBaseStyle = "bg-neutral-900 border-neutral-800 text-white placeholder-neutral-600 focus-visible:ring-1 focus-visible:ring-[#DEAE60]/50";
