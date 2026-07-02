@@ -351,6 +351,26 @@ export default function Partners() {
     return `${String(Math.floor(diff/60)).padStart(2,'0')}h${String(diff%60).padStart(2,'0')}m`;
   };
 
+  const handleDeleteColaborador = async (id: number) => {
+    if (window.confirm("Tem certeza que deseja excluir este colaborador? Todo o histórico de ponto será apagado.")) {
+      try {
+        await api.delete(`/colaboradores/${id}`);
+        toast.success("Colaborador excluído com sucesso!");
+        window.location.reload(); // Recarrega para atualizar a lista
+      } catch (e) { toast.error("Erro ao excluir colaborador."); }
+    }
+  };
+
+  const handleDeleteMotoboy = async (id: number) => {
+    if (window.confirm("Tem certeza que deseja excluir este motoboy? Todo o histórico de rotas será apagado.")) {
+      try {
+        await api.delete(`/motoboys/${id}`);
+        toast.success("Motoboy excluído com sucesso!");
+        window.location.reload(); // Recarrega para atualizar a lista
+      } catch (e) { toast.error("Erro ao excluir motoboy."); }
+    }
+  };
+
   const printColaboradorPdf = async (colaborador: any, monthYear: string, pontos: any[], isPayment: boolean) => {
     if (isPayment) {
       if (!paymentValue || isNaN(Number(paymentValue.replace(',','.')))) {
@@ -956,8 +976,18 @@ export default function Partners() {
                       <p className="text-sm text-neutral-400">{c.cargo || 'Equipa'}</p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3">
-                    {isExpanded ? <ChevronUp className="w-5 h-5 text-[#DEAE60]" /> : <ChevronDown className="w-5 h-5" />}
+                  <div className="flex items-center gap-2">
+                    <Button 
+                      variant="ghost" 
+                      onClick={(e) => { e.stopPropagation(); handleDeleteColaborador(c.id); }} 
+                      className="w-8 h-8 p-0 text-neutral-500 hover:text-red-500 hover:bg-red-500/10" 
+                      title="Excluir Colaborador"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                    <div className="flex items-center justify-center w-8 h-8">
+                      {isExpanded ? <ChevronUp className="w-5 h-5 text-[#DEAE60]" /> : <ChevronDown className="w-5 h-5" />}
+                    </div>
                   </div>
                 </div>
                 
@@ -1099,11 +1129,21 @@ export default function Partners() {
                       </div>
                     </div>
                   </div>
-                  <div className="flex items-center gap-4 text-neutral-500 pl-16 md:pl-0">
-                    <span className="text-xs font-bold uppercase tracking-widest bg-neutral-950 px-3 py-1 rounded-md border border-neutral-800">
-                      {groupedRotas.length} Meses de Corridas
+                  <div className="flex items-center gap-3 text-neutral-500 pl-16 md:pl-0">
+                    <span className="hidden sm:inline-block text-xs font-bold uppercase tracking-widest bg-neutral-950 px-3 py-1 rounded-md border border-neutral-800">
+                      {groupedRotas.length} Meses
                     </span>
-                    {isExpanded ? <ChevronUp className="w-5 h-5 text-[#DEAE60]" /> : <ChevronDown className="w-5 h-5" />}
+                    <Button 
+                      variant="ghost" 
+                      onClick={(e) => { e.stopPropagation(); handleDeleteMotoboy(motoboy.id); }} 
+                      className="w-8 h-8 p-0 text-neutral-500 hover:text-red-500 hover:bg-red-500/10" 
+                      title="Excluir Motoboy"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                    <div className="flex items-center justify-center w-8 h-8">
+                      {isExpanded ? <ChevronUp className="w-5 h-5 text-[#DEAE60]" /> : <ChevronDown className="w-5 h-5" />}
+                    </div>
                   </div>
                 </div>
 
