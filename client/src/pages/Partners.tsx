@@ -126,7 +126,7 @@ export default function Partners() {
   };
 
   // ==========================================
-  // DENTISTAS (CRIAR, EDITAR, ELIMINAR)
+  // DENTISTAS E SERVIÇOS
   // ==========================================
   const handleSaveDentist = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -176,6 +176,31 @@ export default function Partners() {
     }
   };
 
+  // ==========================================
+  // NOVAS FUNÇÕES: EXCLUIR COLABORADOR E MOTOBOY
+  // ==========================================
+  const handleDeleteColaborador = async (id: number) => {
+    if (!confirm("Tem a certeza que deseja excluir este colaborador? Todo o histórico de ponto será apagado.")) return;
+    try {
+      await api.delete(`/colaboradores/${id}`);
+      toast.success("Colaborador excluído com sucesso!");
+      fetchData();
+    } catch (e) { 
+      toast.error("Erro ao excluir colaborador."); 
+    }
+  };
+
+  const handleDeleteMotoboy = async (id: number) => {
+    if (!confirm("Tem a certeza que deseja excluir este motoboy? Todo o histórico de corridas será apagado.")) return;
+    try {
+      await api.delete(`/motoboys/${id}`);
+      toast.success("Motoboy excluído com sucesso!");
+      fetchData();
+    } catch (e) { 
+      toast.error("Erro ao excluir motoboy."); 
+    }
+  };
+
   const openDentistPdfModal = (dentist: any, monthYear: string, monthServices: any[]) => {
     setPdfDentistData({ dentist, monthYear, monthServices });
     setExtraCosts([]);
@@ -190,7 +215,6 @@ export default function Partners() {
     let totalMes = monthServices.reduce((acc: number, curr: any) => acc + Number(curr.valor_bruto), 0);
     let rowsHtml = '';
     
-    // Lista de Serviços Padrão do Laboratório
     monthServices.forEach((s: any, idx: number) => {
       const dataFormatada = new Date(s.data_saida + "T00:00:00").toLocaleDateString('pt-BR');
       const valorFormatado = Number(s.valor_bruto).toFixed(2).replace('.', ',');
@@ -206,7 +230,6 @@ export default function Partners() {
       `;
     });
 
-    // Adiciona os Custos Extras na listagem
     const validExtras = extraCosts.filter(e => e.descricao && e.valor);
     validExtras.forEach((extra) => {
       const v = Number(extra.valor.replace(',', '.'));
@@ -349,26 +372,6 @@ export default function Partners() {
     let diff = (h2*60 + m2) - (h1*60 + m1);
     if(diff < 0) diff += 24*60;
     return `${String(Math.floor(diff/60)).padStart(2,'0')}h${String(diff%60).padStart(2,'0')}m`;
-  };
-
-  const handleDeleteColaborador = async (id: number) => {
-    if (window.confirm("Tem certeza que deseja excluir este colaborador? Todo o histórico de ponto será apagado.")) {
-      try {
-        await api.delete(`/colaboradores/${id}`);
-        toast.success("Colaborador excluído com sucesso!");
-        window.location.reload(); // Recarrega para atualizar a lista
-      } catch (e) { toast.error("Erro ao excluir colaborador."); }
-    }
-  };
-
-  const handleDeleteMotoboy = async (id: number) => {
-    if (window.confirm("Tem certeza que deseja excluir este motoboy? Todo o histórico de rotas será apagado.")) {
-      try {
-        await api.delete(`/motoboys/${id}`);
-        toast.success("Motoboy excluído com sucesso!");
-        window.location.reload(); // Recarrega para atualizar a lista
-      } catch (e) { toast.error("Erro ao excluir motoboy."); }
-    }
   };
 
   const printColaboradorPdf = async (colaborador: any, monthYear: string, pontos: any[], isPayment: boolean) => {
