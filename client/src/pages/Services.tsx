@@ -6,7 +6,8 @@ import { Input } from "@/components/ui/input";
 import { useLocation } from "wouter";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Search, Plus, AlertCircle } from "lucide-react";
+import { Search, Plus, AlertCircle, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 
 export default function Services() {
   const [, setLocation] = useLocation();
@@ -17,46 +18,59 @@ export default function Services() {
 
   const [services, setServices] = useState<any[]>([]);
 
-  useEffect(() => {
-    const fetchServices = async () => {
-      try {
-        const response = await api.get("/trabalhos");
-        
-        // BLINDAGEM 1: Garantir que nenhum campo venha como null e calcular atraso
-        const safeData = response.data.map((trabalho: any) => {
-          let atraso = 0;
-          // Calcula se o serviço está atrasado com base no prazo de entrega
-          if (trabalho.prazo_entrega && trabalho.status !== "Finalizado") {
-            const hoje = new Date();
-            hoje.setHours(0, 0, 0, 0);
-            const prazo = new Date(trabalho.prazo_entrega.includes('T') ? trabalho.prazo_entrega : trabalho.prazo_entrega + "T00:00:00");
-            prazo.setHours(0, 0, 0, 0);
-            
-            if (prazo < hoje) {
-              atraso = Math.floor((hoje.getTime() - prazo.getTime()) / (1000 * 60 * 60 * 24));
-            }
+  const fetchServices = async () => {
+    try {
+      const response = await api.get("/trabalhos");
+      
+      const safeData = response.data.map((trabalho: any) => {
+        let atraso = 0;
+        if (trabalho.prazo_entrega && trabalho.status !== "Finalizado") {
+          const hoje = new Date();
+          hoje.setHours(0, 0, 0, 0);
+          const prazo = new Date(trabalho.prazo_entrega.includes('T') ? trabalho.prazo_entrega : trabalho.prazo_entrega + "T00:00:00");
+          prazo.setHours(0, 0, 0, 0);
+          
+          if (prazo < hoje) {
+            atraso = Math.floor((hoje.getTime() - prazo.getTime()) / (1000 * 60 * 60 * 24));
           }
+        }
 
-          return {
-            id: trabalho.id,
-            paciente_nome: trabalho.paciente_nome || "Nome não registrado",
-            dentista_nome: trabalho.dentista_nome || "Nome não registrado",
-            procedimento: trabalho.procedimento || "Procedimento não especificado",
-            status: trabalho.status || "Pendente",
-            prioridade: trabalho.prioridade || "normal",
-            valor_bruto: Number(trabalho.valor_bruto) || 0,
-            prazo_entrega: trabalho.prazo_entrega || new Date().toISOString(),
-            dias_atraso: atraso, 
-          };
-        });
-        
-        setServices(safeData);
-      } catch (error) {
-        console.error("Erro ao buscar serviços:", error);
-      }
-    };
+        return {
+          id: trabalho.id,
+          paciente_nome: trabalho.paciente_nome || "Nome não registrado",
+          dentista_nome: trabalho.dentista_nome || "Nome não registrado",
+          procedimento: trabalho.procedimento || "Procedimento não especificado",
+          status: trabalho.status || "Pendente",
+          prioridade: trabalho.prioridade || "normal",
+          valor_bruto: Number(trabalho.valor_bruto) || 0,
+          prazo_entrega: trabalho.prazo_entrega || new Date().toISOString(),
+          dias_atraso: atraso, 
+        };
+      });
+      
+      setServices(safeData);
+    } catch (error) {
+      console.error("Erro ao buscar serviços:", error);
+    }
+  };
+
+  useEffect(() => {
     fetchServices();
   }, []);
+
+  // Função para excluir serviço na lista
+  const handleDelete = async (id: number) => {
+    if (window.confirm("Tem a certeza que deseja excluir este serviço? Esta ação não pode ser desfeita.")) {
+      try {
+        await api.delete(`/trabalhos/${id}`);
+        toast.success("Serviço excluído com sucesso!");
+        // Atualiza a lista na tela imediatamente removendo o item apagado
+        setServices(services.filter(s => s.id !== id));
+      } catch (error) {
+        toast.error("Erro ao excluir serviço.");
+      }
+    }
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -82,7 +96,6 @@ export default function Services() {
     }
   };
 
-  // BLINDAGEM 2: Garantir que a pesquisa não quebre e filtre as datas corretamente
   let filteredServices = services.filter((service) => {
     const searchLower = searchTerm.toLowerCase();
     
@@ -113,7 +126,6 @@ export default function Services() {
 
   return (
     <div className="min-h-screen bg-transparent p-6">
-      {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-3xl font-black text-white uppercase tracking-tight">
@@ -133,7 +145,6 @@ export default function Services() {
         </Button>
       </div>
 
-      {/* Filtros - Layout padronizado para mobile (w-full e h-10) */}
       <Card className="bg-neutral-900 border-neutral-800 p-6 mb-6">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
           <div className="relative">
@@ -189,7 +200,6 @@ export default function Services() {
         </div>
       </Card>
 
-      {/* Alertas */}
       {filteredServices.some((s) => s.dias_atraso > 0) && (
         <Card className="bg-red-500/10 border-red-500/30 p-4 mb-6 flex items-center gap-3">
           <AlertCircle size={20} className="text-red-400 shrink-0" />
@@ -199,41 +209,23 @@ export default function Services() {
         </Card>
       )}
 
-      {/* Tabela de Serviços */}
       <Card className="bg-neutral-900 border-neutral-800 overflow-hidden shadow-xl">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="bg-neutral-950 border-b border-neutral-800">
               <tr>
-                <th className="px-6 py-4 text-left text-xs font-bold text-neutral-500 uppercase tracking-wider">
-                  Paciente
-                </th>
-                <th className="px-6 py-4 text-left text-xs font-bold text-neutral-500 uppercase tracking-wider">
-                  Dentista
-                </th>
-                <th className="px-6 py-4 text-left text-xs font-bold text-neutral-500 uppercase tracking-wider">
-                  Procedimento
-                </th>
-                <th className="px-6 py-4 text-left text-xs font-bold text-neutral-500 uppercase tracking-wider">
-                  Status
-                </th>
-                <th className="px-6 py-4 text-left text-xs font-bold text-neutral-500 uppercase tracking-wider">
-                  Prioridade
-                </th>
-                <th className="px-6 py-4 text-left text-xs font-bold text-neutral-500 uppercase tracking-wider">
-                  Valor
-                </th>
-                <th className="px-6 py-4 text-left text-xs font-bold text-neutral-500 uppercase tracking-wider">
-                  Ações
-                </th>
+                <th className="px-6 py-4 text-left text-xs font-bold text-neutral-500 uppercase tracking-wider">Paciente</th>
+                <th className="px-6 py-4 text-left text-xs font-bold text-neutral-500 uppercase tracking-wider">Dentista</th>
+                <th className="px-6 py-4 text-left text-xs font-bold text-neutral-500 uppercase tracking-wider">Procedimento</th>
+                <th className="px-6 py-4 text-left text-xs font-bold text-neutral-500 uppercase tracking-wider">Status</th>
+                <th className="px-6 py-4 text-left text-xs font-bold text-neutral-500 uppercase tracking-wider">Prioridade</th>
+                <th className="px-6 py-4 text-left text-xs font-bold text-neutral-500 uppercase tracking-wider">Valor</th>
+                <th className="px-6 py-4 text-left text-xs font-bold text-neutral-500 uppercase tracking-wider">Ações</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-neutral-800/50">
               {filteredServices.map((service, idx) => (
-                <tr
-                  key={service.id}
-                  className="hover:bg-neutral-800/30 transition-colors"
-                >
+                <tr key={service.id} className="hover:bg-neutral-800/30 transition-colors">
                   <td className="px-6 py-4 text-sm font-bold text-white">{service.paciente_nome}</td>
                   <td className="px-6 py-4 text-sm text-neutral-400">{service.dentista_nome}</td>
                   <td className="px-6 py-4 text-sm text-neutral-400">{service.procedimento}</td>
@@ -249,12 +241,20 @@ export default function Services() {
                   </td>
                   <td className="px-6 py-4 text-sm font-black text-[#DEAE60] whitespace-nowrap">R$ {service.valor_bruto.toFixed(2).replace(".", ",")}</td>
                   <td className="px-6 py-4 text-sm">
-                    <button
-                      onClick={() => setLocation(`/services/${service.id}`)}
-                      className="text-[#DEAE60] hover:text-[#DEAE60]/80 font-bold transition-colors uppercase text-xs tracking-wider"
-                    >
-                      Ver
-                    </button>
+                    <div className="flex items-center gap-4">
+                      <button
+                        onClick={() => setLocation(`/services/${service.id}`)}
+                        className="text-[#DEAE60] hover:text-[#DEAE60]/80 font-bold transition-colors uppercase text-xs tracking-wider"
+                      >
+                        Ver
+                      </button>
+                      <button
+                        onClick={() => handleDelete(service.id)}
+                        className="text-red-500 hover:text-red-400 font-bold transition-colors uppercase text-xs tracking-wider"
+                      >
+                        Excluir
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
