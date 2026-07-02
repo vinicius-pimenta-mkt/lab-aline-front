@@ -1035,5 +1035,131 @@ export default function Partners() {
       </div>
 
     </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                )}
+              </Card>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* ========================================================================= */}
+      {/* SESSÃO 3: LOGÍSTICA & MOTOBOYS (Recolocada aqui com segurança!) */}
+      {/* ========================================================================= */}
+      <div className="border-t border-neutral-800 pt-10 mb-12">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+          <div>
+            <h2 className="text-3xl font-black text-white uppercase tracking-tight flex items-center gap-3">
+              <Bike className="w-8 h-8 text-[#DEAE60]" /> Motoboys e Logística
+            </h2>
+            <p className="text-neutral-400 text-sm mt-2">Controle rotas, taxas de entrega e gere extratos de acerto</p>
+          </div>
+          <div className="flex flex-col sm:flex-row gap-3">
+            <Button variant="outline" onClick={() => setIsMotoboyModalOpen(true)} className="bg-transparent border-neutral-700 text-white hover:bg-neutral-800 font-bold rounded-lg h-10 w-full sm:w-auto">
+              Novo Motoboy
+            </Button>
+            <Button onClick={() => setIsRotaModalOpen(true)} className="bg-[#DEAE60] hover:bg-[#DEAE60]/90 text-neutral-950 font-bold rounded-lg h-10 w-full sm:w-auto">
+              <Map className="w-4 h-4 mr-2" /> Registrar Rota
+            </Button>
+          </div>
+        </div>
+
+        <div className="space-y-4">
+          {motoboys.map((motoboy) => {
+            const isExpanded = expandedMotoboy === motoboy.id;
+            const myRotas = rotas.filter(r => r.motoboy_id === motoboy.id);
+            const groupedRotas = groupDataByMonth(myRotas, 'data');
+
+            return (
+              <Card key={motoboy.id} className="bg-neutral-900/80 border-neutral-800 overflow-hidden shadow-xl transition-all">
+                <div onClick={() => setExpandedMotoboy(isExpanded ? null : motoboy.id)} className="p-6 cursor-pointer hover:bg-neutral-800/30 transition-colors flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-full flex items-center justify-center font-black text-lg bg-neutral-800 text-neutral-300 border border-neutral-700">
+                      {motoboy.nome.charAt(0).toUpperCase()}
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-black text-white uppercase tracking-tight flex items-center gap-2">
+                        {motoboy.nome}
+                      </h3>
+                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1 text-sm text-neutral-400 font-medium">
+                        {motoboy.telefone && <span className="flex items-center gap-1"><Phone className="w-3 h-3"/> {motoboy.telefone}</span>}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-4 text-neutral-500 pl-16 md:pl-0">
+                    <span className="text-xs font-bold uppercase tracking-widest bg-neutral-950 px-3 py-1 rounded-md border border-neutral-800">
+                      {groupedRotas.length} Meses de Corridas
+                    </span>
+                    {isExpanded ? <ChevronUp className="w-5 h-5 text-[#DEAE60]" /> : <ChevronDown className="w-5 h-5" />}
+                  </div>
+                </div>
+
+                {isExpanded && (
+                  <div className="border-t border-neutral-800 bg-neutral-950/50 p-6">
+                    {groupedRotas.length === 0 ? (
+                      <div className="text-center py-8 text-neutral-500 text-sm font-bold uppercase tracking-widest">Nenhuma corrida registrada para este motoboy.</div>
+                    ) : (
+                      <div className="space-y-6">
+                        {groupedRotas.map(([monthYear, monthRotas]) => {
+                          const totalMes = monthRotas.reduce((acc, curr) => acc + Number(curr.valor), 0);
+                          return (
+                            <div key={monthYear} className="border border-neutral-800 rounded-xl overflow-hidden bg-neutral-900">
+                              <div className="bg-neutral-800/50 p-4 flex items-center justify-between border-b border-neutral-800">
+                                <div>
+                                  <h4 className="font-black text-white uppercase tracking-widest text-sm flex items-center gap-2">
+                                    <CalendarIcon className="w-4 h-4 text-[#DEAE60]"/> Fechamento: {monthYear}
+                                  </h4>
+                                  <p className="text-xs text-neutral-400 mt-1">{monthRotas.length} corridas registradas</p>
+                                </div>
+                                <div className="flex items-center gap-4">
+                                  <div className="text-right hidden sm:block">
+                                    <p className="text-[10px] font-bold text-neutral-500 uppercase tracking-widest">A Pagar no Mês</p>
+                                    <p className="text-lg font-black text-[#DEAE60]">R$ {totalMes.toFixed(2).replace('.', ',')}</p>
+                                  </div>
+                                  <Button onClick={(e) => { e.stopPropagation(); printMotoboyReport(motoboy, monthYear, monthRotas); }} variant="ghost" className="text-[#DEAE60] hover:bg-[#DEAE60]/10 hover:text-[#DEAE60] h-10 border border-[#DEAE60]/20">
+                                    <Printer className="w-4 h-4 sm:mr-2" />
+                                    <span className="hidden sm:inline uppercase text-xs font-bold tracking-widest">Imprimir Acerto</span>
+                                  </Button>
+                                </div>
+                              </div>
+                              <div className="p-4 overflow-x-auto custom-scrollbar">
+                                <table className="w-full text-left min-w-[500px]">
+                                  <thead>
+                                    <tr className="border-b border-neutral-800">
+                                      <th className="pb-2 text-[10px] font-bold text-neutral-500 uppercase tracking-widest">Data</th>
+                                      <th className="pb-2 text-[10px] font-bold text-neutral-500 uppercase tracking-widest">Origem (De)</th>
+                                      <th className="pb-2 text-[10px] font-bold text-neutral-500 uppercase tracking-widest">Destino (Para)</th>
+                                      <th className="pb-2 text-[10px] font-bold text-neutral-500 uppercase tracking-widest text-right">Valor</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {monthRotas.map((rota: any) => (
+                                      <tr key={rota.id} className="border-b border-neutral-800/50 last:border-0">
+                                        <td className="py-3 text-xs text-neutral-400">{new Date(rota.data + "T00:00:00").toLocaleDateString('pt-BR')}</td>
+                                        <td className="py-3 text-xs font-bold text-white uppercase">{rota.de_onde}</td>
+                                        <td className="py-3 text-xs font-bold text-white uppercase">{rota.para_onde}</td>
+                                        <td className="py-3 text-xs font-black text-white text-right">R$ {Number(rota.valor).toFixed(2).replace('.', ',')}</td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </Card>
+            );
+          })}
+        </div>
+      </div>
+
+    </div>
   );
 }
