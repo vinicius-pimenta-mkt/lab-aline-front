@@ -35,6 +35,12 @@ interface DentistList {
   telefone: string;
 }
 
+interface ProcedureItem {
+  id: number;
+  procedure: string;
+  grossValue: string;
+}
+
 interface ServiceFormData {
   patientName: string;
   patientPhone: string;
@@ -42,9 +48,7 @@ interface ServiceFormData {
   dentistName: string;
   dentistPhone: string;
   dentistNotes: string;
-  procedure: string;
   description: string;
-  grossValue: string;
   paymentMethod: string;
   priority: string;
   dueDate: string;
@@ -58,7 +62,12 @@ export default function NewService() {
   const [, setLocation] = useLocation();
   
   const [defaultServices, setDefaultServices] = useState<DefaultService[]>([]);
-  const [dentists, setDentists] = useState<DentistList[]>([]); // Estado para os parceiros
+  const [dentists, setDentists] = useState<DentistList[]>([]);
+
+  // Novo estado para suportar Múltiplos Procedimentos
+  const [procedures, setProcedures] = useState<ProcedureItem[]>([
+    { id: Date.now(), procedure: "", grossValue: "" }
+  ]);
 
   const [formData, setFormData] = useState<ServiceFormData>({
     patientName: "",
@@ -67,9 +76,7 @@ export default function NewService() {
     dentistName: "",
     dentistPhone: "",
     dentistNotes: "",
-    procedure: "",
     description: "",
-    grossValue: "",
     paymentMethod: "",
     priority: "normal",
     dueDate: "",
@@ -81,7 +88,6 @@ export default function NewService() {
 
   const [loading, setLoading] = useState(false);
 
-  // Carrega tanto a tabela de preços quanto a lista de dentistas parceiros
   useEffect(() => {
     api.get("/servicos-padrao")
       .then((res) => setDefaultServices(res.data || []))
@@ -98,22 +104,11 @@ export default function NewService() {
     setFormData((prev) => {
       const updatedData = { ...prev, [name]: value };
       
-      // Lógica 1: Autopreenchimento de Preço de Procedimento
-      if (name === "procedure") {
-        const matchedService = defaultServices.find(
-          (s) => s.nome.toLowerCase() === value.toLowerCase().trim()
-        );
-        if (matchedService) {
-          updatedData.grossValue = matchedService.valor_padrao.toString();
-        }
-      }
-
-      // Lógica 2: Autopreenchimento do Telefone do Dentista
+      // Autopreenchimento do Telefone do Dentista
       if (name === "dentistName") {
         const matchedDentist = dentists.find(
           (d) => d.nome.toLowerCase() === value.toLowerCase().trim()
         );
-        // Se achou o dentista e ele tem telefone (e o campo atual está vazio), preenche sozinho
         if (matchedDentist && matchedDentist.telefone && !prev.dentistPhone) {
           updatedData.dentistPhone = matchedDentist.telefone;
         }
@@ -125,6 +120,27 @@ export default function NewService() {
 
   const handleSelectChange = (name: string, value: string) => {
     setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  // Funções para gerir Múltiplos Procedimentos
+  const handleAddProcedure = () => {
+    setProcedures([...procedures, { id: Date.now(), procedure: "", grossValue: "" }]);
+  };
+
+  const handleRemoveProcedure = (id: number) => {
+    if (procedures.length === 1) return toast.warning("Pelo menos um serviço é obrigatório.");
+    setProcedures(procedures.filter(p => p.id !== id));
+  };
+
+  const handleProcedureChange = (id: number, field: "procedure" | "grossValue", value: string) => {
+    setProcedures(procedures.map(p => {
+      if (p.id !== id) return p;
+      if (field === "procedure") {
+        const matched = defaultServices.find(s => s.nome.toLowerCase() === value.toLowerCase().trim());
+        return { ...p, procedure: value, grossValue: matched ? matched.valor_padrao.toString() : p.grossValue };
+      }
+      return { ...p, [field]: value };
+    }));
   };
 
   // Gerenciamento de Custos Dinâmicos
@@ -171,8 +187,8 @@ export default function NewService() {
     }));
   };
 
-  // Cálculos Financeiros
-  const grossValue = parseFloat(formData.grossValue) || 0;
+  // Cálculos Financeiros (Somando os valores de todos os procedimentos)
+  const grossValue = procedures.reduce((acc, curr) => acc + (parseFloat(curr.grossValue) || 0), 0);
   const totalOperationCost = formData.costs.reduce((acc, curr) => acc + (parseFloat(curr.value) || 0), 0);
   const netProfit = grossValue - totalOperationCost;
 
@@ -181,8 +197,8 @@ export default function NewService() {
     setLoading(true);
 
     try {
-      if (!formData.patientName || !formData.dentistName || !formData.procedure || !formData.dueDate) {
-        toast.error("Preencha todos os campos obrigatórios (*), incluindo o prazo de entrega.");
+      if (!formData.patientName || !formData.dentistName || procedures.some(p => !p.procedure.trim()) || !formData.dueDate) {
+        toast.error("Preencha todos os campos obrigatórios (*), incluindo o prazo de entrega e os nomes dos serviços.");
         setLoading(false);
         return;
       }
@@ -190,7 +206,7 @@ export default function NewService() {
       await api.post("/trabalhos", {
         paciente_nome: formData.patientName,
         dentista_nome: formData.dentistName,
-        procedimento: formData.procedure,
+        procedimento: procedures[0].procedure, // Envia o 1º como fallback
         descricao: formData.description,
         prioridade: formData.priority,
         prazo_entrega: formData.dueDate,
@@ -200,11 +216,13 @@ export default function NewService() {
         resumo_trabalho: formData.patientNotes,
         observacoes: formData.dentistNotes,
         etapas: formData.etapas,
+        costs: formData.costs,
         status: formData.status,
-        data_saida: formData.status === "Finalizado" ? formData.completedAt : null
+        data_saida: formData.status === "Finalizado" ? formData.completedAt : null,
+        proceduresList: procedures // Envia a lista completa de procedimentos pro novo backend!
       });
       
-      toast.success("Serviço registado com sucesso!");
+      toast.success("Serviços registados com sucesso!");
       setLocation("/services");
     } catch (error: any) {
       console.error(error.response?.data);
@@ -218,7 +236,6 @@ export default function NewService() {
 
   return (
     <div className="min-h-screen bg-transparent p-6">
-      {/* Header */}
       <div className="flex items-center gap-4 mb-8">
         <button
           onClick={() => setLocation("/services")}
@@ -234,9 +251,7 @@ export default function NewService() {
         </div>
       </div>
 
-      {/* Formulário */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Secção Principal */}
         <div className="lg:col-span-2">
           <Card className="bg-neutral-900/50 border-neutral-800 p-8 shadow-xl">
             <form onSubmit={handleSubmit} className="space-y-8">
@@ -244,57 +259,30 @@ export default function NewService() {
               {/* Cronograma e Gestão */}
               <div>
                 <h2 className="text-sm font-black text-[#DEAE60] uppercase tracking-widest mb-4 flex items-center gap-2">
-                  <Calendar className="w-4 h-4" />
-                  Prazos, Prioridade & Status
+                  <Calendar className="w-4 h-4" /> Prazos, Prioridade & Status
                 </h2>
                 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   <div className="space-y-2">
-                    <Label htmlFor="dueDate" className="text-xs font-bold text-neutral-400 uppercase">
-                      Prazo de Entrega *
-                    </Label>
-                    <Input
-                      id="dueDate"
-                      name="dueDate"
-                      type="date"
-                      value={formData.dueDate}
-                      onChange={handleChange}
-                      className={inputBaseStyle}
-                    />
+                    <Label htmlFor="dueDate" className="text-xs font-bold text-neutral-400 uppercase">Prazo de Entrega *</Label>
+                    <Input id="dueDate" name="dueDate" type="date" value={formData.dueDate} onChange={handleChange} className={inputBaseStyle} />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="priority" className="text-xs font-bold text-neutral-400 uppercase">
-                      Prioridade
-                    </Label>
+                    <Label htmlFor="priority" className="text-xs font-bold text-neutral-400 uppercase">Prioridade</Label>
                     <Select value={formData.priority} onValueChange={(value) => handleSelectChange("priority", value)}>
                       <SelectTrigger className="bg-neutral-900 border-neutral-800 text-white focus:ring-1 focus:ring-[#DEAE60]/50 h-10">
                         <SelectValue placeholder="Selecione" />
                       </SelectTrigger>
                       <SelectContent className="bg-neutral-900 border-neutral-800">
                         <SelectItem value="normal">Normal</SelectItem>
-                        <SelectItem value="urgente">
-                          <span className="flex items-center gap-2 text-red-400"><AlertCircle className="w-4 h-4"/> Urgente</span>
-                        </SelectItem>
-                        <SelectItem value="vip">
-                          <span className="flex items-center gap-2 text-amber-400">⭐ Estojo VIP</span>
-                        </SelectItem>
+                        <SelectItem value="urgente"><span className="flex items-center gap-2 text-red-400"><AlertCircle className="w-4 h-4"/> Urgente</span></SelectItem>
+                        <SelectItem value="vip"><span className="flex items-center gap-2 text-amber-400">⭐ Estojo VIP</span></SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="status" className="text-xs font-bold text-neutral-400 uppercase">
-                      Status Inicial
-                    </Label>
-                    <Select 
-                      value={formData.status} 
-                      onValueChange={(value) => {
-                        setFormData(prev => ({
-                          ...prev,
-                          status: value,
-                          completedAt: value === "Finalizado" && !prev.completedAt ? new Date().toISOString().split("T")[0] : prev.completedAt
-                        }));
-                      }}
-                    >
+                    <Label htmlFor="status" className="text-xs font-bold text-neutral-400 uppercase">Status Inicial</Label>
+                    <Select value={formData.status} onValueChange={(value) => setFormData(prev => ({ ...prev, status: value, completedAt: value === "Finalizado" && !prev.completedAt ? new Date().toISOString().split("T")[0] : prev.completedAt }))}>
                       <SelectTrigger className="bg-neutral-900 border-neutral-800 text-white focus:ring-1 focus:ring-[#DEAE60]/50 h-10">
                         <SelectValue placeholder="Status" />
                       </SelectTrigger>
@@ -309,17 +297,8 @@ export default function NewService() {
 
                 {formData.status === "Finalizado" && (
                   <div className="mt-6 border-t border-neutral-800/50 pt-6 w-full md:w-1/3">
-                    <Label htmlFor="completedAt" className="text-xs font-bold text-neutral-400 uppercase text-green-400">
-                      Data de Finalização *
-                    </Label>
-                    <Input
-                      id="completedAt"
-                      name="completedAt"
-                      type="date"
-                      value={formData.completedAt}
-                      onChange={handleChange}
-                      className={`${inputBaseStyle} mt-2 border-green-500/30 focus-visible:ring-green-500/50`}
-                    />
+                    <Label htmlFor="completedAt" className="text-xs font-bold text-neutral-400 uppercase text-green-400">Data de Finalização *</Label>
+                    <Input id="completedAt" name="completedAt" type="date" value={formData.completedAt} onChange={handleChange} className={`${inputBaseStyle} mt-2 border-green-500/30 focus-visible:ring-green-500/50`} />
                   </div>
                 )}
               </div>
@@ -329,9 +308,7 @@ export default function NewService() {
                 <h2 className="text-sm font-black text-[#DEAE60] uppercase tracking-widest mb-4">Informações do Paciente</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
-                    <Label htmlFor="patientName" className="text-xs font-bold text-neutral-400 uppercase">
-                      Nome do Paciente *
-                    </Label>
+                    <Label htmlFor="patientName" className="text-xs font-bold text-neutral-400 uppercase">Nome do Paciente *</Label>
                     <Input id="patientName" name="patientName" placeholder="Ex: João Silva" value={formData.patientName} onChange={handleChange} className={inputBaseStyle} />
                   </div>
                   <div className="space-y-2">
@@ -345,27 +322,15 @@ export default function NewService() {
                 </div>
               </div>
 
-              {/* Informações do Dentista (COM AUTOCOMPLETAR) */}
+              {/* Informações do Dentista */}
               <div className="border-t border-neutral-800/50 pt-8">
                 <h2 className="text-sm font-black text-[#DEAE60] uppercase tracking-widest mb-4">Informações do Dentista / Parceiro</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
                     <Label htmlFor="dentistName" className="text-xs font-bold text-neutral-400 uppercase">Nome do Parceiro *</Label>
-                    <Input 
-                      id="dentistName" 
-                      name="dentistName" 
-                      list="dentist-options"
-                      placeholder="Digite para buscar ou cadastrar..." 
-                      value={formData.dentistName} 
-                      onChange={handleChange} 
-                      className={inputBaseStyle} 
-                      autoComplete="off"
-                    />
-                    {/* Datalist dinâmico alimentado pelo back-end (Parceiros) */}
+                    <Input id="dentistName" name="dentistName" list="dentist-options" placeholder="Digite para buscar ou cadastrar..." value={formData.dentistName} onChange={handleChange} className={inputBaseStyle} autoComplete="off" />
                     <datalist id="dentist-options">
-                      {dentists.map((d) => (
-                        <option key={d.id} value={d.nome} />
-                      ))}
+                      {dentists.map((d) => <option key={d.id} value={d.nome} />)}
                     </datalist>
                   </div>
                   <div className="space-y-2">
@@ -379,32 +344,54 @@ export default function NewService() {
                 </div>
               </div>
 
-              {/* Detalhes do Procedimento (COM AUTOCOMPLETAR DE VALOR) */}
+              {/* MÚLTIPLOS PROCEDIMENTOS */}
               <div className="border-t border-neutral-800/50 pt-8">
-                <h2 className="text-sm font-black text-[#DEAE60] uppercase tracking-widest mb-4">Detalhes do Serviço</h2>
-                <div className="space-y-6">
-                  <div className="space-y-2">
-                    <Label htmlFor="procedure" className="text-xs font-bold text-neutral-400 uppercase">Tipo de Procedimento *</Label>
-                    <Input 
-                      id="procedure" 
-                      name="procedure" 
-                      list="procedure-options" 
-                      placeholder="Digite para buscar ou criar um procedimento" 
-                      value={formData.procedure} 
-                      onChange={handleChange} 
-                      className={inputBaseStyle} 
-                      autoComplete="off"
-                    />
-                    <datalist id="procedure-options">
-                      {defaultServices.map((srv) => (
-                        <option key={srv.id} value={srv.nome} />
-                      ))}
-                    </datalist>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="description" className="text-xs font-bold text-neutral-400 uppercase">Descrição do Trabalho</Label>
-                    <Textarea id="description" name="description" placeholder="Descreva os materiais utilizados, etc." value={formData.description} onChange={handleChange} rows={3} className={inputBaseStyle} />
-                  </div>
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-sm font-black text-[#DEAE60] uppercase tracking-widest">Detalhes do Serviço / Procedimentos</h2>
+                  <Button type="button" onClick={handleAddProcedure} size="sm" variant="ghost" className="h-8 text-xs text-[#DEAE60] hover:text-[#DEAE60] hover:bg-[#DEAE60]/10">
+                    <Plus className="w-3 h-3 mr-1" /> Adicionar Serviço Extra
+                  </Button>
+                </div>
+                
+                <div className="space-y-4 mb-6">
+                  {procedures.map((p, idx) => (
+                    <div key={p.id} className="flex flex-col sm:flex-row items-end gap-3 bg-neutral-950/30 p-4 rounded-xl border border-neutral-800/50">
+                      <div className="flex-1 w-full space-y-2">
+                        <Label className="text-[10px] font-bold text-neutral-400 uppercase">Procedimento #{idx + 1} *</Label>
+                        <Input 
+                          list="procedure-options" 
+                          placeholder="Digite para buscar ou criar" 
+                          value={p.procedure} 
+                          onChange={(e) => handleProcedureChange(p.id, "procedure", e.target.value)} 
+                          className={inputBaseStyle} 
+                          autoComplete="off"
+                        />
+                      </div>
+                      <div className="w-full sm:w-40 space-y-2">
+                        <Label className="text-[10px] font-bold text-neutral-400 uppercase">Valor (R$)</Label>
+                        <Input 
+                          type="number" step="0.01" 
+                          value={p.grossValue} 
+                          onChange={(e) => handleProcedureChange(p.id, "grossValue", e.target.value)} 
+                          className={`${inputBaseStyle} text-[#DEAE60] font-bold`} 
+                          placeholder="0.00" 
+                        />
+                      </div>
+                      {procedures.length > 1 && (
+                        <Button type="button" variant="ghost" onClick={() => handleRemoveProcedure(p.id)} className="h-10 w-10 p-0 text-neutral-500 hover:text-red-400 border border-neutral-800 shrink-0">
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      )}
+                    </div>
+                  ))}
+                  <datalist id="procedure-options">
+                    {defaultServices.map((srv) => <option key={srv.id} value={srv.nome} />)}
+                  </datalist>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="description" className="text-xs font-bold text-neutral-400 uppercase">Descrição Geral do Trabalho</Label>
+                  <Textarea id="description" name="description" placeholder="Descreva os materiais utilizados, detalhes para produção conjunta, etc." value={formData.description} onChange={handleChange} rows={3} className={inputBaseStyle} />
                 </div>
               </div>
 
@@ -442,10 +429,11 @@ export default function NewService() {
               <div className="border-t border-neutral-800/50 pt-8">
                 <h2 className="text-sm font-black text-[#DEAE60] uppercase tracking-widest mb-4">Financeiro & Custos</h2>
                 <div className="space-y-6">
+                  
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-2">
-                      <Label htmlFor="grossValue" className="text-xs font-bold text-neutral-400 uppercase">Valor Cobrado (Bruto - R$)</Label>
-                      <Input id="grossValue" name="grossValue" type="number" placeholder="0.00" step="0.01" value={formData.grossValue} onChange={handleChange} className={`${inputBaseStyle} text-[#DEAE60] font-bold text-lg h-12`} />
+                      <Label className="text-xs font-bold text-neutral-400 uppercase">Soma Bruta dos Serviços (R$)</Label>
+                      <Input readOnly value={grossValue.toFixed(2).replace(".", ",")} className={`${inputBaseStyle} text-[#DEAE60] font-bold text-lg h-12 bg-neutral-950`} />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="paymentMethod" className="text-xs font-bold text-neutral-400 uppercase">Forma de Pagamento</Label>
@@ -493,14 +481,14 @@ export default function NewService() {
                   Cancelar
                 </Button>
                 <Button type="submit" disabled={loading} className="flex-1 bg-[#DEAE60] hover:bg-[#DEAE60]/90 text-neutral-950 font-black rounded-lg uppercase tracking-tight h-12">
-                  {loading ? "A registar..." : "Registar Serviço"}
+                  {loading ? "A registar..." : "Registar Serviços"}
                 </Button>
               </div>
             </form>
           </Card>
         </div>
 
-        {/* Sidebar - Resumo Financeiro Espelhado */}
+        {/* Sidebar - Resumo Financeiro */}
         <div className="space-y-6">
           <Card className="bg-neutral-900/80 border-neutral-800 p-6 shadow-xl sticky top-6">
             <h3 className="font-bold text-white uppercase mb-6 flex items-center gap-2">
@@ -508,7 +496,7 @@ export default function NewService() {
             </h3>
             <div className="space-y-6">
               <div>
-                <p className="text-neutral-400 text-xs font-bold uppercase tracking-wider mb-2">Valor Bruto</p>
+                <p className="text-neutral-400 text-xs font-bold uppercase tracking-wider mb-2">Valor Bruto ({procedures.length} Serviço{procedures.length > 1 ? 's' : ''})</p>
                 <p className="text-3xl font-black text-white">R$ {grossValue.toFixed(2).replace(".", ",")}</p>
               </div>
               <div className="border-t border-neutral-800/50 pt-6">
