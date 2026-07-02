@@ -51,7 +51,6 @@ export default function ServiceDetail() {
   const [editing, setEditing] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  // Estados para o Modal de Exportação PDF
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [selectedCostsPdf, setSelectedCostsPdf] = useState<any[]>([]);
 
@@ -93,7 +92,6 @@ export default function ServiceDetail() {
     fetchService();
   }, [serviceId]);
 
-  // Edição de Campos Gerais
   const handleFieldChange = (field: keyof ServiceData, value: any) => {
     setService((prev) => (prev ? { ...prev, [field]: value } : null));
   };
@@ -166,15 +164,26 @@ export default function ServiceDetail() {
     }
   };
 
+  // Função para Excluir o Serviço pela Tela de Detalhes
+  const handleDeleteService = async () => {
+    if (!service) return;
+    if (window.confirm("Atenção! Esta ação excluirá este serviço e todos os seus custos e etapas. Deseja continuar?")) {
+      try {
+        await api.delete(`/trabalhos/${service.id}`);
+        toast.success("Serviço excluído permanentemente!");
+        setLocation("/services");
+      } catch (error) {
+        toast.error("Erro ao excluir o serviço.");
+      }
+    }
+  };
+
   const toggleCostForPdf = (costId: any) => {
     setSelectedCostsPdf(prev => 
       prev.includes(costId) ? prev.filter(id => id !== costId) : [...prev, costId]
     );
   };
 
-  // =========================================================================
-  // GERAÇÃO DO PDF - Atualizado com Prazos e Telefones
-  // =========================================================================
   const triggerPdfPrint = () => {
     setIsExportModalOpen(false);
 
@@ -242,7 +251,6 @@ export default function ServiceDetail() {
           <p>Telefone: (31) 99526-3682</p>
           <p>Extrato de Serviço Detalhado</p>
         </div>
-
         <div class="info">
           <p>
             <strong>Dentista/Parceiro:</strong> ${service.dentist.toUpperCase()} 
@@ -261,7 +269,6 @@ export default function ServiceDetail() {
             <strong>Status Final:</strong> ${finalizadoFormatado}
           </p>
         </div>
-
         <table>
           <thead>
             <tr>
@@ -275,7 +282,6 @@ export default function ServiceDetail() {
             ${rowsHtml}
           </tbody>
         </table>
-
         <div class="summary">
           <div class="summary-line">
             <span>Débito:</span>
@@ -286,7 +292,6 @@ export default function ServiceDetail() {
             <span>R$ ${totalPdfValue.toFixed(2).replace('.', ',')}</span>
           </div>
         </div>
-
         <div class="clear" style="padding-top: 40px;">
           <p><strong>Forma Prevista de Pagamento:</strong> ${service.forma_pagamento || "Não informada"}</p>
           <p><strong>Data de Emissão:</strong> ${dataEmissao}</p>
@@ -333,7 +338,6 @@ export default function ServiceDetail() {
   return (
     <div className="min-h-screen bg-transparent p-6 relative">
       
-      {/* MODAL DE SELEÇÃO PARA EXPORTAÇÃO */}
       {isExportModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
           <div className="bg-neutral-900 border border-neutral-800 p-6 rounded-2xl w-full max-w-md shadow-2xl relative">
@@ -396,7 +400,7 @@ export default function ServiceDetail() {
             </p>
           </div>
         </div>
-        <div className="flex gap-3">
+        <div className="flex flex-wrap gap-3">
           <Button
             onClick={() => setIsExportModalOpen(true)}
             className="bg-neutral-800 hover:bg-neutral-700 text-white font-bold rounded-lg flex items-center gap-2"
@@ -406,12 +410,21 @@ export default function ServiceDetail() {
             <span className="sm:hidden">PDF</span>
           </Button>
           {!editing && (
-            <Button
-              onClick={() => setEditing(true)}
-              className="bg-[#DEAE60] hover:bg-[#DEAE60]/90 text-neutral-950 font-bold rounded-lg"
-            >
-              Editar Caso
-            </Button>
+            <>
+              <Button
+                onClick={() => setEditing(true)}
+                className="bg-[#DEAE60] hover:bg-[#DEAE60]/90 text-neutral-950 font-bold rounded-lg"
+              >
+                Editar Caso
+              </Button>
+              <Button
+                onClick={handleDeleteService}
+                className="bg-red-500/10 hover:bg-red-500/20 text-red-500 font-bold rounded-lg border border-red-500/20"
+              >
+                <Trash2 className="w-4 h-4 sm:mr-2" />
+                <span className="hidden sm:inline">Excluir</span>
+              </Button>
+            </>
           )}
         </div>
       </div>
