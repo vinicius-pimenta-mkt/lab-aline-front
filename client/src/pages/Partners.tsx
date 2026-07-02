@@ -1047,7 +1047,7 @@ export default function Partners() {
       </div>
 
       {/* ========================================================================= */}
-      {/* SESSÃO 3: LOGÍSTICA & MOTOBOYS (Recolocada aqui com segurança!) */}
+      {/* SESSÃO 3: LOGÍSTICA & MOTOBOYS */}
       {/* ========================================================================= */}
       <div className="border-t border-neutral-800 pt-10 mb-12">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
@@ -1157,6 +1157,14 @@ export default function Partners() {
               </Card>
             );
           })}
+          
+          {motoboys.length === 0 && (
+            <div className="text-center py-10 border border-neutral-800 border-dashed rounded-xl bg-neutral-900/30">
+              <Bike className="w-12 h-12 text-neutral-700 mx-auto mb-4" />
+              <h3 className="text-lg font-black text-white uppercase">Nenhum motoboy cadastrado</h3>
+              <p className="text-neutral-500 text-sm mt-2">Clique em "Novo Motoboy" para começar.</p>
+            </div>
+          )}
         </div>
       </div>
 
