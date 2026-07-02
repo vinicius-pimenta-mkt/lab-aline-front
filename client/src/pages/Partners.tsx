@@ -389,7 +389,7 @@ export default function Partners() {
       <!DOCTYPE html>
       <html>
       <head>
-        <title>Espelho_Ponto_${colaborador.nome}_${monthYear.replace('/', '-')}</title>
+        <title>Relatório_Ponto_${colaborador.nome}_${monthYear.replace('/', '-')}</title>
         <style>
           @page { margin: 15mm; size: A4 portrait; }
           body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #333; font-size: 11px; line-height: 1.5; padding: 10px; }
