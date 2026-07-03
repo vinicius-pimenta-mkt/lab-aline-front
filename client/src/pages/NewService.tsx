@@ -16,13 +16,6 @@ interface Cost {
   value: string;
 }
 
-interface StepForm {
-  id: number;
-  nome: string;
-  descricao: string;
-  status: string;
-}
-
 interface DefaultService {
   id: number;
   nome: string;
@@ -55,7 +48,6 @@ interface ServiceFormData {
   status: string;
   completedAt: string;
   costs: Cost[];
-  etapas: StepForm[];
 }
 
 export default function NewService() {
@@ -64,7 +56,7 @@ export default function NewService() {
   const [defaultServices, setDefaultServices] = useState<DefaultService[]>([]);
   const [dentists, setDentists] = useState<DentistList[]>([]);
 
-  // Novo estado para suportar Múltiplos Procedimentos
+  // Estado para suportar Múltiplos Procedimentos
   const [procedures, setProcedures] = useState<ProcedureItem[]>([
     { id: Date.now(), procedure: "", grossValue: "" }
   ]);
@@ -83,7 +75,6 @@ export default function NewService() {
     status: "Pendente",
     completedAt: "",
     costs: [{ id: Date.now(), name: "", value: "" }],
-    etapas: [{ id: Date.now() + 1, nome: "Modelo de Gesso", descricao: "Vazamento inicial do modelo", status: "pending" }],
   });
 
   const [loading, setLoading] = useState(false);
@@ -165,28 +156,6 @@ export default function NewService() {
     }));
   };
 
-  // Gerenciamento de Etapas Dinâmicas
-  const handleAddStep = () => {
-    setFormData((prev) => ({
-      ...prev,
-      etapas: [...prev.etapas, { id: Date.now(), nome: "", descricao: "", status: "pending" }],
-    }));
-  };
-
-  const handleRemoveStep = (idToRemove: number) => {
-    setFormData((prev) => ({
-      ...prev,
-      etapas: prev.etapas.filter((etapa) => etapa.id !== idToRemove),
-    }));
-  };
-
-  const handleStepChange = (id: number, field: keyof StepForm, value: string) => {
-    setFormData((prev) => ({
-      ...prev,
-      etapas: prev.etapas.map((etapa) => (etapa.id === id ? { ...etapa, [field]: value } : etapa)),
-    }));
-  };
-
   // Cálculos Financeiros (Somando os valores de todos os procedimentos)
   const grossValue = procedures.reduce((acc, curr) => acc + (parseFloat(curr.grossValue) || 0), 0);
   const totalOperationCost = formData.costs.reduce((acc, curr) => acc + (parseFloat(curr.value) || 0), 0);
@@ -215,7 +184,6 @@ export default function NewService() {
         custo_operacional: totalOperationCost,
         resumo_trabalho: formData.patientNotes,
         observacoes: formData.dentistNotes,
-        etapas: formData.etapas,
         costs: formData.costs,
         status: formData.status,
         data_saida: formData.status === "Finalizado" ? formData.completedAt : null,
@@ -247,7 +215,7 @@ export default function NewService() {
           <h1 className="text-3xl font-black text-white uppercase tracking-tight">
             NOVO SERVIÇO
           </h1>
-          <p className="text-neutral-400 text-sm mt-2">Agende prazos e configure as etapas de produção</p>
+          <p className="text-neutral-400 text-sm mt-2">Agende prazos e configure os serviços</p>
         </div>
       </div>
 
@@ -392,36 +360,6 @@ export default function NewService() {
                 <div className="space-y-2">
                   <Label htmlFor="description" className="text-xs font-bold text-neutral-400 uppercase">Descrição Geral do Trabalho</Label>
                   <Textarea id="description" name="description" placeholder="Descreva os materiais utilizados, detalhes para produção conjunta, etc." value={formData.description} onChange={handleChange} rows={3} className={inputBaseStyle} />
-                </div>
-              </div>
-
-              {/* ETAPAS DE PRODUÇÃO DINÂMICAS */}
-              <div className="border-t border-neutral-800/50 pt-8">
-                <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-sm font-black text-[#DEAE60] uppercase tracking-widest flex items-center gap-2">
-                    <Layers className="w-5 h-5" /> Linha de Produção (Etapas)
-                  </h2>
-                  <Button type="button" onClick={handleAddStep} variant="ghost" size="sm" className="h-8 text-xs text-[#DEAE60] hover:text-[#DEAE60] hover:bg-[#DEAE60]/10">
-                    <Plus className="w-3 h-3 mr-1" /> Nova Etapa
-                  </Button>
-                </div>
-                <div className="space-y-4">
-                  {formData.etapas.map((etapa, idx) => (
-                    <div key={etapa.id} className="p-4 bg-neutral-950/40 rounded-xl border border-neutral-800/60 space-y-4">
-                      <div className="flex items-center gap-3">
-                        <span className="text-xs font-black text-neutral-600 bg-neutral-900 px-3 py-2 rounded-md">#{idx + 1}</span>
-                        <div className="flex-1">
-                          <Input placeholder="Nome da etapa (ex: Modelo, Aplicação de Cerâmica)" value={etapa.nome} onChange={(e) => handleStepChange(etapa.id, "nome", e.target.value)} className={`${inputBaseStyle} h-10`} />
-                        </div>
-                        <Button type="button" onClick={() => handleRemoveStep(etapa.id)} variant="ghost" className="h-10 w-10 p-0 text-neutral-500 hover:text-red-400 hover:bg-red-400/10 shrink-0" disabled={formData.etapas.length === 1}>
-                          <Trash2 className="w-5 h-5" />
-                        </Button>
-                      </div>
-                      <div className="pl-[3.25rem]">
-                        <Textarea placeholder="Instruções ou detalhes do que deve ser feito nesta etapa específica..." value={etapa.descricao} onChange={(e) => handleStepChange(etapa.id, "descricao", e.target.value)} rows={2} className={`${inputBaseStyle} text-sm`} />
-                      </div>
-                    </div>
-                  ))}
                 </div>
               </div>
 
