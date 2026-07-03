@@ -8,14 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { ArrowLeft, Download, Save, CheckCircle2, Clock, AlertCircle, Plus, Trash2, Layers, Calendar, CreditCard, X } from "lucide-react";
-
-interface Stage {
-  id: any;
-  nome: string;
-  descricao: string;
-  status: "pending" | "in_progress" | "completed";
-}
+import { ArrowLeft, Download, Save, Plus, Trash2, Calendar, CreditCard, X } from "lucide-react";
 
 interface Cost {
   id: any;
@@ -36,7 +29,6 @@ interface ServiceData {
   prazo_entrega: string;
   forma_pagamento: string;
   grossValue: number;
-  stages: Stage[];
   costs: Cost[];
   createdAt: string;
   completedAt: string;
@@ -80,7 +72,6 @@ export default function ServiceDetail() {
           prazo_entrega: fetched.prazo_entrega ? fetched.prazo_entrega.split("T")[0] : "",
           forma_pagamento: fetched.forma_pagamento || "",
           grossValue: fetched.valor_bruto,
-          stages: fetched.etapas || [],
           costs: fetched.custos ? fetched.custos.map((c: any) => ({
             id: c.id,
             name: c.descricao || c.nome || "",
@@ -100,24 +91,6 @@ export default function ServiceDetail() {
 
   const handleFieldChange = (field: keyof ServiceData, value: any) => {
     setService((prev) => (prev ? { ...prev, [field]: value } : null));
-  };
-
-  const handleStageChange = (id: any, field: keyof Stage, value: string) => {
-    setService((prev) =>
-      prev ? { ...prev, stages: prev.stages.map((s) => (s.id === id ? { ...s, [field]: value } : s)) } : null
-    );
-  };
-
-  const handleAddStage = () => {
-    setService((prev) =>
-      prev ? { ...prev, stages: [...prev.stages, { id: `new-${Date.now()}`, nome: "", descricao: "", status: "pending" }] } : null
-    );
-  };
-
-  const handleRemoveStage = (id: any) => {
-    setService((prev) =>
-      prev ? { ...prev, stages: prev.stages.filter((s) => s.id !== id) } : null
-    );
   };
 
   const handleCostChange = (id: any, field: keyof Cost, value: string) => {
@@ -157,7 +130,6 @@ export default function ServiceDetail() {
         forma_pagamento: service.forma_pagamento,
         valor_bruto: service.grossValue,
         custo_operacional: calculatedOperationCost,
-        etapas: service.stages,
         costs: service.costs,
         data_saida: service.status === "Finalizado" ? service.completedAt : null
       });
@@ -172,7 +144,7 @@ export default function ServiceDetail() {
 
   const handleDeleteService = async () => {
     if (!service) return;
-    if (window.confirm("Atenção! Esta ação excluirá este serviço e todos os seus custos e etapas. Deseja continuar?")) {
+    if (window.confirm("Atenção! Esta ação excluirá este serviço e todos os seus custos. Deseja continuar?")) {
       try {
         await api.delete(`/trabalhos/${service.id}`);
         toast.success("Serviço excluído permanentemente!");
@@ -323,14 +295,6 @@ export default function ServiceDetail() {
     setTimeout(() => { printWindow.print(); printWindow.close(); }, 250);
   };
 
-  const getStageIcon = (status: string) => {
-    switch (status) {
-      case "completed": return <CheckCircle2 className="w-5 h-5 text-green-400" />;
-      case "in_progress": return <Clock className="w-5 h-5 text-blue-400" />;
-      default: return <AlertCircle className="w-5 h-5 text-neutral-500" />;
-    }
-  };
-
   if (loading && !service) return <div className="min-h-screen bg-transparent p-6 text-white flex items-center justify-center">Carregando detalhes...</div>;
   if (!service) return <div className="min-h-screen bg-neutral-950 p-6 text-white flex items-center justify-center">Serviço não encontrado.</div>;
 
@@ -429,7 +393,7 @@ export default function ServiceDetail() {
           </Button>
           {!editing && (
             <>
-              {/* BOTÃO SERVIÇO EXTRA AQUI */}
+              {/* BOTÃO SERVIÇO EXTRA */}
               <Button onClick={() => setIsExtraServiceModalOpen(true)} className="bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 font-bold rounded-lg border border-blue-500/20">
                 <Plus className="w-4 h-4 sm:mr-2" />
                 <span className="hidden sm:inline">Serviço Extra</span>
@@ -497,66 +461,6 @@ export default function ServiceDetail() {
                   <p className="text-neutral-300 mt-2 text-sm leading-relaxed">{service.description || "Nenhuma descrição detalhada."}</p>
                 )}
               </div>
-            </div>
-          </Card>
-
-          <Card className="bg-neutral-900 border-neutral-800 p-8 shadow-xl">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-sm font-black text-[#DEAE60] uppercase tracking-widest flex items-center gap-2">
-                <Layers className="w-5 h-5" /> Etapas do Procedimento
-              </h2>
-              {editing && (
-                <Button type="button" onClick={handleAddStage} variant="ghost" size="sm" className="text-xs text-[#DEAE60] hover:bg-[#DEAE60]/10">
-                  <Plus className="w-3 h-3 mr-1" /> Nova Etapa
-                </Button>
-              )}
-            </div>
-            <div className="space-y-4">
-              {service.stages.length === 0 && !editing && <p className="text-neutral-500 text-sm italic">Nenhuma etapa registrada para este serviço.</p>}
-              {service.stages.map((stage, idx) => (
-                <div key={stage.id} className="flex items-start gap-4 pb-6 border-b border-neutral-800/50 last:border-0 last:pb-0">
-                  <div className="mt-2 shrink-0">{getStageIcon(stage.status)}</div>
-                  <div className="flex-1 space-y-3">
-                    <div className="flex flex-col md:flex-row md:items-center gap-3">
-                      <div className="flex-1">
-                        {editing ? (
-                          <Input placeholder="Nome da etapa" value={stage.nome} onChange={(e) => handleStageChange(stage.id, "nome", e.target.value)} className={inputBaseStyle} />
-                        ) : (
-                          <h3 className="font-bold text-white text-base">{stage.nome || "Etapa sem nome"}</h3>
-                        )}
-                      </div>
-                      <div className="w-full md:w-48">
-                        {editing ? (
-                          <Select value={stage.status} onValueChange={(value) => handleStageChange(stage.id, "status", value as "pending" | "in_progress" | "completed")}>
-                            <SelectTrigger className="bg-neutral-900 border-neutral-800 text-white focus:ring-1 focus:ring-[#DEAE60]/50"><SelectValue placeholder="Status" /></SelectTrigger>
-                            <SelectContent className="bg-neutral-900 border-neutral-800">
-                              <SelectItem value="pending">Pendente</SelectItem>
-                              <SelectItem value="in_progress">Em Andamento</SelectItem>
-                              <SelectItem value="completed">Concluída</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        ) : (
-                          <span className="text-xs font-bold uppercase text-neutral-400">
-                            {stage.status === 'completed' ? '✓ Concluída' : stage.status === 'in_progress' ? '⏳ Em andamento' : '○ Pendente'}
-                          </span>
-                        )}
-                      </div>
-                      {editing && (
-                        <Button type="button" onClick={() => handleRemoveStage(stage.id)} variant="ghost" className="h-10 w-10 p-0 text-neutral-500 hover:text-red-400 shrink-0" disabled={service.stages.length === 1}>
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      )}
-                    </div>
-                    <div>
-                      {editing ? (
-                        <Textarea placeholder="Descrição da etapa..." value={stage.descricao} onChange={(e) => handleStageChange(stage.id, "descricao", e.target.value)} rows={2} className={`${inputBaseStyle} text-sm`} />
-                      ) : (
-                        stage.descricao && <p className="text-sm text-neutral-400 leading-relaxed">{stage.descricao}</p>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              ))}
             </div>
           </Card>
         </div>
