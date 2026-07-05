@@ -3,10 +3,11 @@ import api from "../lib/api";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { useLocation } from "wouter";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Search, Plus, AlertCircle, Trash2 } from "lucide-react";
+import { Search, Plus, AlertCircle, Trash2, Receipt, Wallet, X } from "lucide-react";
 import { toast } from "sonner";
 
 export default function Services() {
@@ -17,11 +18,20 @@ export default function Services() {
   const [viewFilter, setViewFilter] = useState("todos");
 
   const [services, setServices] = useState<any[]>([]);
+  const [despesas, setDespesas] = useState<any[]>([]); // Novo estado para Custos
+
+  // Estados do Modal de Despesas
+  const [isDespesaModalOpen, setIsDespesaModalOpen] = useState(false);
+  const [isSubmittingDespesa, setIsSubmittingDespesa] = useState(false);
+  const [despesaForm, setDespesaForm] = useState({ 
+    descricao: "", 
+    valor: "", 
+    data: new Date().toISOString().split('T')[0] 
+  });
 
   const fetchServices = async () => {
     try {
       const response = await api.get("/trabalhos");
-      
       const safeData = response.data.map((trabalho: any) => {
         let atraso = 0;
         if (trabalho.prazo_entrega && trabalho.status !== "Finalizado") {
@@ -29,12 +39,10 @@ export default function Services() {
           hoje.setHours(0, 0, 0, 0);
           const prazo = new Date(trabalho.prazo_entrega.includes('T') ? trabalho.prazo_entrega : trabalho.prazo_entrega + "T00:00:00");
           prazo.setHours(0, 0, 0, 0);
-          
           if (prazo < hoje) {
             atraso = Math.floor((hoje.getTime() - prazo.getTime()) / (1000 * 60 * 60 * 24));
           }
         }
-
         return {
           id: trabalho.id,
           paciente_nome: trabalho.paciente_nome || "Nome não registrado",
@@ -47,24 +55,32 @@ export default function Services() {
           dias_atraso: atraso, 
         };
       });
-      
       setServices(safeData);
     } catch (error) {
       console.error("Erro ao buscar serviços:", error);
     }
   };
 
+  // Nova função para buscar custos
+  const fetchDespesas = async () => {
+    try {
+      const response = await api.get("/despesas").catch(() => ({ data: [] }));
+      setDespesas(response.data || []);
+    } catch (error) {
+      console.error("Erro ao buscar despesas:", error);
+    }
+  };
+
   useEffect(() => {
     fetchServices();
+    fetchDespesas(); // Chama os custos ao carregar a página
   }, []);
 
-  // Função para excluir serviço na lista
   const handleDelete = async (id: number) => {
     if (window.confirm("Tem a certeza que deseja excluir este serviço? Esta ação não pode ser desfeita.")) {
       try {
         await api.delete(`/trabalhos/${id}`);
         toast.success("Serviço excluído com sucesso!");
-        // Atualiza a lista na tela imediatamente removendo o item apagado
         setServices(services.filter(s => s.id !== id));
       } catch (error) {
         toast.error("Erro ao excluir serviço.");
@@ -72,33 +88,58 @@ export default function Services() {
     }
   };
 
+  // Funções de Ação das Despesas
+  const handleSaveDespesa = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmittingDespesa(true);
+    try {
+      await api.post("/despesas", {
+        descricao: despesaForm.descricao,
+        valor: parseFloat(despesaForm.valor.replace(',', '.')) || 0,
+        data: despesaForm.data
+      });
+      toast.success("Custo registado com sucesso!");
+      setIsDespesaModalOpen(false);
+      setDespesaForm({ descricao: "", valor: "", data: new Date().toISOString().split('T')[0] });
+      fetchDespesas();
+    } catch (error) {
+      toast.error("Erro ao registar custo.");
+    } finally {
+      setIsSubmittingDespesa(false);
+    }
+  };
+
+  const handleDeleteDespesa = async (id: number) => {
+    if (window.confirm("Tem a certeza que deseja excluir este custo? Ele será removido dos relatórios.")) {
+      try {
+        await api.delete(`/despesas/${id}`);
+        toast.success("Custo excluído!");
+        fetchDespesas();
+      } catch (error) {
+        toast.error("Erro ao excluir custo.");
+      }
+    }
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "Pendente":
-        return "bg-yellow-500/20 text-yellow-400";
-      case "Em Andamento":
-        return "bg-blue-500/20 text-blue-400";
-      case "Finalizado":
-        return "bg-green-500/20 text-green-400";
-      default:
-        return "bg-neutral-500/20 text-neutral-400";
+      case "Pendente": return "bg-yellow-500/20 text-yellow-400";
+      case "Em Andamento": return "bg-blue-500/20 text-blue-400";
+      case "Finalizado": return "bg-green-500/20 text-green-400";
+      default: return "bg-neutral-500/20 text-neutral-400";
     }
   };
 
   const getPrioridadeColor = (prioridade: string) => {
     switch (prioridade) {
-      case "urgente":
-        return "bg-red-500/20 text-red-400";
-      case "vip":
-        return "bg-amber-500/20 text-amber-400";
-      default:
-        return "bg-neutral-500/20 text-neutral-400";
+      case "urgente": return "bg-red-500/20 text-red-400";
+      case "vip": return "bg-amber-500/20 text-amber-400";
+      default: return "bg-neutral-500/20 text-neutral-400";
     }
   };
 
   let filteredServices = services.filter((service) => {
     const searchLower = searchTerm.toLowerCase();
-    
     const matchesSearch =
       (service.paciente_nome || "").toLowerCase().includes(searchLower) ||
       (service.dentista_nome || "").toLowerCase().includes(searchLower) ||
@@ -125,24 +166,90 @@ export default function Services() {
   });
 
   return (
-    <div className="min-h-screen bg-transparent p-6">
-      <div className="flex items-center justify-between mb-8">
+    <div className="min-h-screen bg-transparent p-6 pb-24">
+      
+      {/* MODAL DE REGISTRAR DESPESA */}
+      {isDespesaModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+          <div className="bg-neutral-900 border border-neutral-800 p-6 rounded-2xl w-full max-w-md shadow-2xl relative">
+            <button onClick={() => setIsDespesaModalOpen(false)} className="absolute top-4 right-4 p-1 text-neutral-500 hover:text-white transition-colors">
+              <X className="w-5 h-5" />
+            </button>
+            <h3 className="text-xl font-black text-white uppercase tracking-tight mb-6 flex items-center gap-2">
+              <Receipt className="w-5 h-5 text-red-400" /> Registrar Custo Geral
+            </h3>
+            
+            <form onSubmit={handleSaveDespesa} className="space-y-4">
+              <div className="space-y-2">
+                <Label className="text-xs font-bold text-neutral-400 uppercase">Descrição da Despesa *</Label>
+                <Input 
+                  required 
+                  value={despesaForm.descricao} 
+                  onChange={e => setDespesaForm({...despesaForm, descricao: e.target.value})} 
+                  className="bg-neutral-950 border-neutral-800 text-white focus-visible:ring-red-500/50" 
+                  placeholder="Ex: Conta de Luz, Motoboy Avulso, Materiais" 
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label className="text-xs font-bold text-neutral-400 uppercase">Valor (R$) *</Label>
+                  <Input 
+                    required 
+                    type="number" 
+                    step="0.01"
+                    value={despesaForm.valor} 
+                    onChange={e => setDespesaForm({...despesaForm, valor: e.target.value})} 
+                    className="bg-neutral-950 border-neutral-800 text-white focus-visible:ring-red-500/50" 
+                    placeholder="0.00" 
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-xs font-bold text-neutral-400 uppercase">Data do Custo *</Label>
+                  <Input 
+                    required 
+                    type="date" 
+                    value={despesaForm.data} 
+                    onChange={e => setDespesaForm({...despesaForm, data: e.target.value})} 
+                    className="bg-neutral-950 border-neutral-800 text-white focus-visible:ring-red-500/50" 
+                  />
+                </div>
+              </div>
+              <Button disabled={isSubmittingDespesa} type="submit" className="w-full bg-red-500 hover:bg-red-600 text-white font-black mt-4 uppercase tracking-wider">
+                {isSubmittingDespesa ? "Registrando..." : "Salvar Custo"}
+              </Button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* CABEÇALHO */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
         <div>
           <h1 className="text-3xl font-black text-white uppercase tracking-tight">
             SERVIÇOS
           </h1>
           <p className="text-neutral-400 text-sm mt-2">
-            Gerenciar todos os serviços do laboratório
+            Gerencie todos os serviços e os custos do laboratório
           </p>
         </div>
-        <Button
-          onClick={() => setLocation("/services/new")}
-          className="bg-[#DEAE60] hover:bg-[#DEAE60]/90 text-neutral-950 font-bold rounded-lg flex items-center gap-2"
-        >
-          <Plus className="w-4 h-4" />
-          <span className="hidden sm:inline">Novo Serviço</span>
-          <span className="sm:hidden">Novo</span>
-        </Button>
+        <div className="flex flex-col sm:flex-row gap-3">
+          <Button
+            variant="outline"
+            onClick={() => setIsDespesaModalOpen(true)}
+            className="bg-transparent border-red-500/30 text-red-400 hover:bg-red-500/10 font-bold rounded-lg flex items-center gap-2 h-11"
+          >
+            <Receipt className="w-4 h-4" />
+            <span className="hidden sm:inline">Registrar Custo</span>
+          </Button>
+          <Button
+            onClick={() => setLocation("/services/new")}
+            className="bg-[#DEAE60] hover:bg-[#DEAE60]/90 text-neutral-950 font-bold rounded-lg flex items-center gap-2 h-11"
+          >
+            <Plus className="w-4 h-4" />
+            <span className="hidden sm:inline">Novo Serviço</span>
+            <span className="sm:hidden">Novo</span>
+          </Button>
+        </div>
       </div>
 
       <Card className="bg-neutral-900 border-neutral-800 p-6 mb-6">
@@ -153,12 +260,12 @@ export default function Services() {
               placeholder="Buscar paciente, dentista..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full h-10 bg-neutral-800 border-neutral-700 pl-10 text-white placeholder-neutral-500"
+              className="w-full h-10 bg-neutral-800 border-neutral-700 pl-10 text-white placeholder-neutral-500 focus-visible:ring-[#DEAE60]/50"
             />
           </div>
 
           <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-full h-10 bg-neutral-800 border-neutral-700 text-white">
+            <SelectTrigger className="w-full h-10 bg-neutral-800 border-neutral-700 text-white focus:ring-[#DEAE60]/50">
               <SelectValue placeholder="Status" />
             </SelectTrigger>
             <SelectContent className="bg-neutral-800 border-neutral-700 text-white">
@@ -170,7 +277,7 @@ export default function Services() {
           </Select>
 
           <Select value={prioridadeFilter} onValueChange={setPrioridadeFilter}>
-            <SelectTrigger className="w-full h-10 bg-neutral-800 border-neutral-700 text-white">
+            <SelectTrigger className="w-full h-10 bg-neutral-800 border-neutral-700 text-white focus:ring-[#DEAE60]/50">
               <SelectValue placeholder="Prioridade" />
             </SelectTrigger>
             <SelectContent className="bg-neutral-800 border-neutral-700 text-white">
@@ -182,7 +289,7 @@ export default function Services() {
           </Select>
 
           <Select value={viewFilter} onValueChange={setViewFilter}>
-            <SelectTrigger className="w-full h-10 bg-neutral-800 border-neutral-700 text-white">
+            <SelectTrigger className="w-full h-10 bg-neutral-800 border-neutral-700 text-white focus:ring-[#DEAE60]/50">
               <SelectValue placeholder="Visualização" />
             </SelectTrigger>
             <SelectContent className="bg-neutral-800 border-neutral-700 text-white">
@@ -209,7 +316,8 @@ export default function Services() {
         </Card>
       )}
 
-      <Card className="bg-neutral-900 border-neutral-800 overflow-hidden shadow-xl">
+      {/* TABELA DE SERVIÇOS */}
+      <Card className="bg-neutral-900 border-neutral-800 overflow-hidden shadow-xl mb-12">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="bg-neutral-950 border-b border-neutral-800">
@@ -220,11 +328,11 @@ export default function Services() {
                 <th className="px-6 py-4 text-left text-xs font-bold text-neutral-500 uppercase tracking-wider">Status</th>
                 <th className="px-6 py-4 text-left text-xs font-bold text-neutral-500 uppercase tracking-wider">Prioridade</th>
                 <th className="px-6 py-4 text-left text-xs font-bold text-neutral-500 uppercase tracking-wider">Valor</th>
-                <th className="px-6 py-4 text-left text-xs font-bold text-neutral-500 uppercase tracking-wider">Ações</th>
+                <th className="px-6 py-4 text-center text-xs font-bold text-neutral-500 uppercase tracking-wider">Ações</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-neutral-800/50">
-              {filteredServices.map((service, idx) => (
+              {filteredServices.map((service) => (
                 <tr key={service.id} className="hover:bg-neutral-800/30 transition-colors">
                   <td className="px-6 py-4 text-sm font-bold text-white">{service.paciente_nome}</td>
                   <td className="px-6 py-4 text-sm text-neutral-400">{service.dentista_nome}</td>
@@ -241,7 +349,7 @@ export default function Services() {
                   </td>
                   <td className="px-6 py-4 text-sm font-black text-[#DEAE60] whitespace-nowrap">R$ {service.valor_bruto.toFixed(2).replace(".", ",")}</td>
                   <td className="px-6 py-4 text-sm">
-                    <div className="flex items-center gap-4">
+                    <div className="flex items-center justify-center gap-4">
                       <button
                         onClick={() => setLocation(`/services/${service.id}`)}
                         className="text-[#DEAE60] hover:text-[#DEAE60]/80 font-bold transition-colors uppercase text-xs tracking-wider"
@@ -269,6 +377,61 @@ export default function Services() {
           </div>
         )}
       </Card>
+
+      {/* NOVA TABELA DE CUSTOS GERAIS */}
+      <div>
+        <div className="flex items-center gap-3 mb-6">
+          <Wallet className="w-6 h-6 text-red-400" />
+          <h2 className="text-xl font-black text-white uppercase tracking-tight">
+            Despesas e Custos do Laboratório
+          </h2>
+        </div>
+        
+        <Card className="bg-neutral-900 border-neutral-800 overflow-hidden shadow-xl">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-neutral-950 border-b border-neutral-800">
+                <tr>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-neutral-500 uppercase tracking-wider w-32">Data</th>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-neutral-500 uppercase tracking-wider">Descrição da Despesa</th>
+                  <th className="px-6 py-4 text-right text-xs font-bold text-neutral-500 uppercase tracking-wider w-48">Valor do Custo</th>
+                  <th className="px-6 py-4 text-center text-xs font-bold text-neutral-500 uppercase tracking-wider w-24">Ações</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-neutral-800/50">
+                {despesas.length === 0 && (
+                  <tr>
+                    <td colSpan={4} className="px-6 py-8 text-center text-neutral-500 text-sm font-medium">
+                      Nenhum custo geral registrado.
+                    </td>
+                  </tr>
+                )}
+                {despesas.map((despesa) => (
+                  <tr key={despesa.id} className="hover:bg-neutral-800/30 transition-colors">
+                    <td className="px-6 py-4 text-sm text-neutral-400">
+                      {new Date(despesa.data + "T00:00:00").toLocaleDateString('pt-BR')}
+                    </td>
+                    <td className="px-6 py-4 text-sm font-bold text-white uppercase">{despesa.descricao}</td>
+                    <td className="px-6 py-4 text-sm font-black text-red-400 text-right whitespace-nowrap">
+                      - R$ {Number(despesa.valor).toFixed(2).replace(".", ",")}
+                    </td>
+                    <td className="px-6 py-4 text-center">
+                      <button
+                        onClick={() => handleDeleteDespesa(despesa.id)}
+                        className="text-neutral-500 hover:text-red-400 font-bold transition-colors p-2"
+                        title="Excluir Custo"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      </div>
+
     </div>
   );
 }
