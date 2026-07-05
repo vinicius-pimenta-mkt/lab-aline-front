@@ -881,6 +881,7 @@ export default function Partners() {
                               <thead>
                                 <tr className="border-b border-neutral-800">
                                   <th className="pb-2 text-[10px] font-bold text-neutral-500 uppercase tracking-widest">Data Saída</th>
+                                  <th className="pb-2 text-[10px] font-bold text-neutral-500 uppercase tracking-widest">Paciente / Contato</th>
                                   <th className="pb-2 text-[10px] font-bold text-neutral-500 uppercase tracking-widest">Procedimento Realizado</th>
                                   <th className="pb-2 text-[10px] font-bold text-neutral-500 uppercase tracking-widest text-right">Valor Registado</th>
                                   <th className="pb-2 text-[10px] font-bold text-neutral-500 uppercase tracking-widest text-center w-24">Ações</th>
@@ -891,6 +892,10 @@ export default function Partners() {
                                   <tr key={s.id} className="border-b border-neutral-800/50 hover:bg-neutral-800/20">
                                     <td className="py-3 text-xs text-neutral-400">
                                       {new Date(s.data_saida + "T00:00:00").toLocaleDateString('pt-BR')}
+                                    </td>
+                                    <td className="py-3 text-xs font-bold text-neutral-300 uppercase">
+                                      {s.paciente_nome || 'NÃO INFORMADO'}
+                                      {s.paciente_telefone && <span className="block text-[10px] text-neutral-500 font-normal mt-0.5">📞 {s.paciente_telefone}</span>}
                                     </td>
                                     <td className="py-3 text-xs font-bold text-white uppercase">{s.procedimento}</td>
                                     <td className="py-3 text-xs font-black text-[#DEAE60] text-right">
