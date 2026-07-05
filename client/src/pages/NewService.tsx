@@ -174,6 +174,7 @@ export default function NewService() {
 
       await api.post("/trabalhos", {
         paciente_nome: formData.patientName,
+        paciente_telefone: formData.patientPhone,
         dentista_nome: formData.dentistName,
         procedimento: procedures[0].procedure, // Envia o 1º como fallback
         descricao: formData.description,
