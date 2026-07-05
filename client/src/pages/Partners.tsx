@@ -219,10 +219,15 @@ export default function Partners() {
       const dataFormatada = new Date(s.data_saida + "T00:00:00").toLocaleDateString('pt-BR');
       const valorFormatado = Number(s.valor_bruto).toFixed(2).replace('.', ',');
       
+      // NOVA LÓGICA: Prepara o nome e telefone do paciente
+      const pacNome = s.paciente_nome ? s.paciente_nome.toUpperCase() : 'NÃO INFORMADO';
+      const pacTel = s.paciente_telefone ? `<br/><span style="font-size:9px; color:#666;">📞 ${s.paciente_telefone}</span>` : '';
+      
       rowsHtml += `
         <tr>
           <td class="center" style="color: #666;">${String(idx + 1).padStart(2, '0')}</td>
           <td>${dataFormatada}</td>
+          <td><strong>${pacNome}</strong>${pacTel}</td>
           <td><strong>${s.procedimento.toUpperCase()}</strong></td>
           <td class="center">${s.forma_pagamento || '-'}</td>
           <td class="right" style="font-weight: bold;">R$ ${valorFormatado}</td>
@@ -240,6 +245,7 @@ export default function Partners() {
         <tr>
           <td class="center" style="color: #DEAE60;">•</td>
           <td>-</td>
+          <td class="center">-</td>
           <td style="color: #666; font-style: italic;">[Custo Extra] ${extra.descricao.toUpperCase()}</td>
           <td class="center">-</td>
           <td class="right" style="color: #666; font-weight: bold;">R$ ${valorExtraFormatado}</td>
@@ -275,7 +281,7 @@ export default function Partners() {
       <body>
         <div class="header">
           <div class="logo-area">
-            <img src="/logoaline.png" style="width: 45px; height: 44px; object-contain: true;" />
+            <img src="/logoaline.png" style="width: 45px; height: 44px; object-fit: contain;" />
             <div>
               <h1>ALINE ANTUNES</h1>
               <p>Prótese Odontológica</p>
@@ -293,10 +299,11 @@ export default function Partners() {
           <thead>
             <tr>
               <th class="center" style="width: 5%;">#</th>
-              <th style="width: 15%;">Data Saída</th>
-              <th style="width: 45%;">Procedimento Executado</th>
-              <th class="center" style="width: 15%;">Forma Pagamento</th>
-              <th class="right" style="width: 20%;">Valor Cobrado</th>
+              <th style="width: 12%;">Data Saída</th>
+              <th style="width: 28%;">Paciente / Contato</th>
+              <th style="width: 30%;">Procedimento Executado</th>
+              <th class="center" style="width: 10%;">Pagamento</th>
+              <th class="right" style="width: 15%;">Valor</th>
             </tr>
           </thead>
           <tbody>
