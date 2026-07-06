@@ -31,6 +31,7 @@ export default function Reports() {
   const [periodFilter, setPeriodFilter] = useState("mes");
   
   const [completedServices, setCompletedServices] = useState<CompletedService[]>([]);
+  const [despesasGerais, setDespesasGerais] = useState<any[]>([]); // <-- ESTADO ADICIONADO
   const [monthlyData, setMonthlyData] = useState<MonthlyData[]>([]);
   const [costsDistribution, setCostsDistribution] = useState<{name: string, value: number}[]>([]);
   const [paymentMethods, setPaymentMethods] = useState<{name: string, value: number}[]>([]);
@@ -54,6 +55,7 @@ export default function Reports() {
         const data = response.data || {};
 
         setCompletedServices(data.completedServices || []);
+        setDespesasGerais(data.despesasGerais || []); // <-- CARGA DAS DESPESAS
         setMonthlyData((data.monthlyData || []).map((d: any) => ({ ...d, month: formatMonthLabel(d.month) })));
         setCostsDistribution(data.costsDistribution || []);
         setPaymentMethods(data.paymentMethods || []);
@@ -116,24 +118,24 @@ export default function Reports() {
       `;
     });
 
-    // --- INJEÇÃO CIRÚRGICA 1: ADICIONA A LINHA DE DESPESAS GERAIS NO PDF ---
-    const custoServicos = completedServices.reduce((acc, curr) => acc + Number(curr.operationCost), 0);
-    const despesasGeraisTotal = totalCost - custoServicos;
-
-    if (despesasGeraisTotal > 0) {
-      rowsHtml += `
-        <tr style="background-color: #fee2e2; border-top: 2px solid #dc2626;">
-          <td colspan="4" class="right" style="font-weight: bold; color: #dc2626;">DESPESAS GERAIS (LABORATÓRIO) NO PERÍODO</td>
-          <td class="right text-red" style="font-weight: bold;">-${formatCurrency(despesasGeraisTotal)}</td>
-          <td class="right text-red" style="font-weight: bold;">-${formatCurrency(despesasGeraisTotal)}</td>
-          <td></td>
-        </tr>
-      `;
+    // LISTAGEM DE DESPESAS GERAIS NO PDF
+    if (despesasGerais.length > 0) {
+      rowsHtml += `<tr><td colspan="7" style="background: #f5f5f5; font-weight: bold; padding: 10px 8px; font-size:11px; border-top: 2px solid #000;">DESPESAS GERAIS DO LABORATÓRIO</td></tr>`;
+      despesasGerais.forEach((desp) => {
+        rowsHtml += `
+          <tr style="background: #fafafa;">
+            <td colspan="3" style="font-weight: bold; color: #dc2626; text-transform: uppercase;">[CUSTO] ${desp.descricao}</td>
+            <td class="right">-</td>
+            <td class="right text-red">-${formatCurrency(desp.valor)}</td>
+            <td class="right text-red">-${formatCurrency(desp.valor)}</td>
+            <td class="center">${desp.data ? new Date(desp.data + "T00:00:00").toLocaleDateString("pt-BR") : "--"}</td>
+          </tr>
+        `;
+      });
     }
-    // ------------------------------------------------------------------------
 
-    if (completedServices.length === 0 && despesasGeraisTotal <= 0) {
-      rowsHtml = `<tr><td colspan="7" class="center">Nenhum serviço finalizado neste período.</td></tr>`;
+    if (completedServices.length === 0 && despesasGerais.length === 0) {
+      rowsHtml = `<tr><td colspan="7" class="center">Nenhum dado financeiro registrado neste período.</td></tr>`;
     }
 
     const htmlContent = `
@@ -193,11 +195,11 @@ export default function Reports() {
           </div>
         </div>
 
-        <h3 style="font-size: 12px; border-bottom: 1px solid #ccc; padding-bottom: 4px; margin-bottom: 10px;">EXTRATO DE SERVIÇOS DO PERÍODO</h3>
+        <h3 style="font-size: 12px; border-bottom: 1px solid #ccc; padding-bottom: 4px; margin-bottom: 10px;">EXTRATO DO PERÍODO</h3>
         <table>
           <thead>
             <tr>
-              <th>Paciente</th>
+              <th>Paciente / Item</th>
               <th>Dentista</th>
               <th class="center">Pagamento</th>
               <th class="right">Valor Bruto</th>
@@ -347,7 +349,7 @@ export default function Reports() {
             </ResponsiveContainer>
           </Card>
 
-          <Card className="bg-neutral-900 border-neutral-800 overflow-hidden shadow-xl">
+          <Card className="bg-neutral-900 border-neutral-800 overflow-hidden shadow-xl mb-6">
             <div className="p-6 border-b border-neutral-800">
               <h2 className="text-sm font-black text-[#DEAE60] uppercase tracking-widest">Extrato do Período Selecionado</h2>
             </div>
@@ -378,28 +380,48 @@ export default function Reports() {
                       </td>
                     </tr>
                   ))}
-                  
-                  {/* --- INJEÇÃO CIRÚRGICA 2: ADICIONA A LINHA DE DESPESAS GERAIS NA TABELA VISUAL --- */}
-                  {(totalCost - completedServices.reduce((acc, curr) => acc + Number(curr.operationCost), 0)) > 0 && (
-                    <tr className="bg-red-500/10 border-t border-red-500/30 hover:bg-red-500/20 transition-colors">
-                      <td colSpan={4} className="px-6 py-4 text-sm font-black text-red-400 text-right uppercase tracking-widest">
-                        Despesas Gerais (Laboratório)
-                      </td>
-                      <td className="px-6 py-4 text-sm font-bold text-red-400 text-right">
-                        -{formatCurrency(totalCost - completedServices.reduce((acc, curr) => acc + Number(curr.operationCost), 0))}
-                      </td>
-                      <td className="px-6 py-4 text-sm font-black text-red-400 text-right">
-                        -{formatCurrency(totalCost - completedServices.reduce((acc, curr) => acc + Number(curr.operationCost), 0))}
-                      </td>
-                      <td className="px-6 py-4"></td>
-                    </tr>
-                  )}
-                  {/* --------------------------------------------------------------------------------- */}
-
-                  {completedServices.length === 0 && (totalCost - completedServices.reduce((acc, curr) => acc + Number(curr.operationCost), 0)) <= 0 && (
+                  {completedServices.length === 0 && (
                     <tr>
                       <td colSpan={7} className="px-6 py-12 text-center text-neutral-500 text-sm">
                         Nenhum serviço finalizado neste período.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+
+          {/* --- NOVA TABELA EXCLUSIVA DE DESPESAS GERAIS NO PERÍODO --- */}
+          <Card className="bg-neutral-900 border-neutral-800 overflow-hidden shadow-xl">
+            <div className="p-6 border-b border-neutral-800">
+              <h2 className="text-sm font-black text-red-400 uppercase tracking-widest">Despesas Gerais do Laboratório (Período)</h2>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-neutral-950 border-b border-neutral-800">
+                  <tr>
+                    <th className="px-6 py-4 text-left text-xs font-bold text-neutral-500 uppercase">Descrição da Despesa</th>
+                    <th className="px-6 py-4 text-left text-xs font-bold text-neutral-500 uppercase">Data</th>
+                    <th className="px-6 py-4 text-right text-xs font-bold text-neutral-500 uppercase">Valor da Despesa</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-neutral-800/50">
+                  {despesasGerais.map((desp: any) => (
+                    <tr key={desp.id} className="hover:bg-neutral-800/30 bg-neutral-900/50">
+                      <td className="px-6 py-4 text-sm font-bold text-white uppercase">{desp.descricao}</td>
+                      <td className="px-6 py-4 text-sm text-neutral-400">
+                        {desp.data ? new Date(desp.data + "T00:00:00").toLocaleDateString("pt-BR") : "--"}
+                      </td>
+                      <td className="px-6 py-4 text-sm font-black text-red-400 text-right">
+                        -{formatCurrency(desp.valor)}
+                      </td>
+                    </tr>
+                  ))}
+                  {despesasGerais.length === 0 && (
+                    <tr>
+                      <td colSpan={3} className="px-6 py-12 text-center text-neutral-500 text-sm">
+                        Nenhuma despesa geral registrada neste período.
                       </td>
                     </tr>
                   )}
