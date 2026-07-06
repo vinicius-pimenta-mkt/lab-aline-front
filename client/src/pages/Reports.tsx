@@ -50,7 +50,19 @@ export default function Reports() {
     const fetchReports = async () => {
       setLoading(true);
       try {
-        const response = await api.get(`/relatorios/completo?periodo=${periodFilter}`);
+        // Lógica para converter o filtro (hoje, mes) em datas exatas para o Back-end
+        const hoje = new Date();
+        let dIni = new Date();
+        if (periodFilter === "hoje") dIni = hoje;
+        else if (periodFilter === "semana") dIni.setDate(hoje.getDate() - 7);
+        else if (periodFilter === "quinzena") dIni.setDate(hoje.getDate() - 15);
+        else if (periodFilter === "mes") dIni.setDate(hoje.getDate() - 30);
+        
+        const data_inicio = dIni.toISOString().split('T')[0];
+        const data_fim = hoje.toISOString().split('T')[0];
+
+        // Chama a rota principal do Back-end com as datas exatas
+        const response = await api.get(`/relatorios?data_inicio=${data_inicio}&data_fim=${data_fim}`);
         const data = response.data || {};
 
         setCompletedServices(data.completedServices || []);
@@ -89,8 +101,11 @@ export default function Reports() {
     }
   };
 
+  // Encontra o valor exato das despesas gerais para exibir no extrato
+  const despesasGeraisTotal = costsDistribution.find(c => c.name === 'Despesas Gerais (Lab)')?.value || 0;
+
   // =========================================================================
-  // NOVA FUNÇÃO DE GERAR PDF DO RELATÓRIO: Documento HTML limpo
+  // FUNÇÃO DE GERAR PDF DO RELATÓRIO
   // =========================================================================
   const exportarRelatorio = () => {
     const printWindow = window.open('', '_blank');
@@ -116,8 +131,20 @@ export default function Reports() {
       `;
     });
 
-    if (completedServices.length === 0) {
-      rowsHtml = `<tr><td colspan="7" class="center">Nenhum serviço finalizado neste período.</td></tr>`;
+    // Injeção da Linha de Despesas Gerais no PDF
+    if (despesasGeraisTotal > 0) {
+      rowsHtml += `
+        <tr style="background-color: #fee2e2; border-top: 2px solid #dc2626;">
+          <td colspan="4" class="right" style="font-weight: bold; color: #dc2626;">DESPESAS GERAIS (LABORATÓRIO) NO PERÍODO</td>
+          <td class="right text-red" style="font-weight: bold;">-${formatCurrency(despesasGeraisTotal)}</td>
+          <td class="right text-red" style="font-weight: bold;">-${formatCurrency(despesasGeraisTotal)}</td>
+          <td></td>
+        </tr>
+      `;
+    }
+
+    if (completedServices.length === 0 && despesasGeraisTotal === 0) {
+      rowsHtml = `<tr><td colspan="7" class="center">Nenhum dado registrado neste período.</td></tr>`;
     }
 
     const htmlContent = `
@@ -362,10 +389,27 @@ export default function Reports() {
                       </td>
                     </tr>
                   ))}
-                  {completedServices.length === 0 && (
+                  
+                  {/* LINHA DE DEDUÇÃO: DESPESAS GERAIS */}
+                  {despesasGeraisTotal > 0 && (
+                    <tr className="bg-red-500/10 border-t border-red-500/30 hover:bg-red-500/20 transition-colors">
+                      <td colSpan={4} className="px-6 py-4 text-sm font-black text-red-400 text-right uppercase tracking-widest">
+                        Despesas Gerais (Laboratório)
+                      </td>
+                      <td className="px-6 py-4 text-sm font-bold text-red-400 text-right">
+                        -{formatCurrency(despesasGeraisTotal)}
+                      </td>
+                      <td className="px-6 py-4 text-sm font-black text-red-400 text-right">
+                        -{formatCurrency(despesasGeraisTotal)}
+                      </td>
+                      <td className="px-6 py-4"></td>
+                    </tr>
+                  )}
+
+                  {completedServices.length === 0 && despesasGeraisTotal === 0 && (
                     <tr>
                       <td colSpan={7} className="px-6 py-12 text-center text-neutral-500 text-sm">
-                        Nenhum serviço finalizado neste período.
+                        Nenhum dado registrado neste período.
                       </td>
                     </tr>
                   )}
