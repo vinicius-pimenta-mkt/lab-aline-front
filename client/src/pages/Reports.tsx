@@ -116,7 +116,23 @@ export default function Reports() {
       `;
     });
 
-    if (completedServices.length === 0) {
+    // --- INJEÇÃO CIRÚRGICA 1: ADICIONA A LINHA DE DESPESAS GERAIS NO PDF ---
+    const custoServicos = completedServices.reduce((acc, curr) => acc + Number(curr.operationCost), 0);
+    const despesasGeraisTotal = totalCost - custoServicos;
+
+    if (despesasGeraisTotal > 0) {
+      rowsHtml += `
+        <tr style="background-color: #fee2e2; border-top: 2px solid #dc2626;">
+          <td colspan="4" class="right" style="font-weight: bold; color: #dc2626;">DESPESAS GERAIS (LABORATÓRIO) NO PERÍODO</td>
+          <td class="right text-red" style="font-weight: bold;">-${formatCurrency(despesasGeraisTotal)}</td>
+          <td class="right text-red" style="font-weight: bold;">-${formatCurrency(despesasGeraisTotal)}</td>
+          <td></td>
+        </tr>
+      `;
+    }
+    // ------------------------------------------------------------------------
+
+    if (completedServices.length === 0 && despesasGeraisTotal <= 0) {
       rowsHtml = `<tr><td colspan="7" class="center">Nenhum serviço finalizado neste período.</td></tr>`;
     }
 
@@ -362,7 +378,25 @@ export default function Reports() {
                       </td>
                     </tr>
                   ))}
-                  {completedServices.length === 0 && (
+                  
+                  {/* --- INJEÇÃO CIRÚRGICA 2: ADICIONA A LINHA DE DESPESAS GERAIS NA TABELA VISUAL --- */}
+                  {(totalCost - completedServices.reduce((acc, curr) => acc + Number(curr.operationCost), 0)) > 0 && (
+                    <tr className="bg-red-500/10 border-t border-red-500/30 hover:bg-red-500/20 transition-colors">
+                      <td colSpan={4} className="px-6 py-4 text-sm font-black text-red-400 text-right uppercase tracking-widest">
+                        Despesas Gerais (Laboratório)
+                      </td>
+                      <td className="px-6 py-4 text-sm font-bold text-red-400 text-right">
+                        -{formatCurrency(totalCost - completedServices.reduce((acc, curr) => acc + Number(curr.operationCost), 0))}
+                      </td>
+                      <td className="px-6 py-4 text-sm font-black text-red-400 text-right">
+                        -{formatCurrency(totalCost - completedServices.reduce((acc, curr) => acc + Number(curr.operationCost), 0))}
+                      </td>
+                      <td className="px-6 py-4"></td>
+                    </tr>
+                  )}
+                  {/* --------------------------------------------------------------------------------- */}
+
+                  {completedServices.length === 0 && (totalCost - completedServices.reduce((acc, curr) => acc + Number(curr.operationCost), 0)) <= 0 && (
                     <tr>
                       <td colSpan={7} className="px-6 py-12 text-center text-neutral-500 text-sm">
                         Nenhum serviço finalizado neste período.
