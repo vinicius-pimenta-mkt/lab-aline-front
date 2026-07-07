@@ -122,6 +122,8 @@ export default function ServiceDetail() {
 
     try {
       await api.put(`/trabalhos/${service.id}`, {
+        paciente_nome: service.patient, // <-- ADICIONADO: Envia o paciente corrigido
+        dentista_nome: service.dentist, // <-- ADICIONADO: Envia o dentista corrigido
         procedimento: service.procedure,
         descricao: service.description,
         status: service.status,
@@ -415,6 +417,26 @@ export default function ServiceDetail() {
           <Card className="bg-neutral-900 border-neutral-800 p-8 shadow-xl">
             <h2 className="text-sm font-black text-[#DEAE60] uppercase tracking-widest mb-6">Informações do Serviço</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              
+              {/* --- CAMPOS ADICIONADOS: EDIÇÃO DO PACIENTE E DENTISTA --- */}
+              <div className="space-y-2">
+                <Label className="text-xs font-bold text-neutral-400 uppercase">Paciente</Label>
+                {editing ? (
+                  <Input value={service.patient} onChange={(e) => handleFieldChange("patient", e.target.value)} className={inputBaseStyle} />
+                ) : (
+                  <p className="text-white font-bold mt-2">{service.patient}</p>
+                )}
+              </div>
+              <div className="space-y-2">
+                <Label className="text-xs font-bold text-neutral-400 uppercase">Dentista / Parceiro</Label>
+                {editing ? (
+                  <Input value={service.dentist} onChange={(e) => handleFieldChange("dentist", e.target.value)} className={inputBaseStyle} />
+                ) : (
+                  <p className="text-white font-bold mt-2">{service.dentist}</p>
+                )}
+              </div>
+              {/* --------------------------------------------------------- */}
+
               <div className="space-y-2">
                 <Label className="text-xs font-bold text-neutral-400 uppercase">Prazo de Entrega</Label>
                 {editing ? (
