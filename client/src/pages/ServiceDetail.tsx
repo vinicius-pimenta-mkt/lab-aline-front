@@ -42,6 +42,9 @@ export default function ServiceDetail() {
   const [service, setService] = useState<ServiceData | null>(null);
   const [editing, setEditing] = useState(false);
   const [loading, setLoading] = useState(true);
+  
+  // --- ESTADO ADICIONADO: Guardar a lista de dentistas do banco de dados ---
+  const [dentistList, setDentistList] = useState<any[]>([]);
 
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [selectedCostsPdf, setSelectedCostsPdf] = useState<any[]>([]);
@@ -53,6 +56,16 @@ export default function ServiceDetail() {
   const [isSubmittingExtra, setIsSubmittingExtra] = useState(false);
 
   useEffect(() => {
+    // --- FUNÇÃO ADICIONADA: Buscar parceiros para o menu Dropdown ---
+    const fetchDentists = async () => {
+      try {
+        const res = await api.get("/dentistas");
+        setDentistList(res.data || []);
+      } catch (err) {
+        console.error("Erro ao carregar lista de dentistas", err);
+      }
+    };
+
     const fetchService = async () => {
       if (!serviceId) return;
       try {
@@ -86,6 +99,8 @@ export default function ServiceDetail() {
         setLoading(false);
       }
     };
+
+    fetchDentists(); // Chama a busca de dentistas
     fetchService();
   }, [serviceId]);
 
@@ -122,8 +137,8 @@ export default function ServiceDetail() {
 
     try {
       await api.put(`/trabalhos/${service.id}`, {
-        paciente_nome: service.patient, // <-- ADICIONADO: Envia o paciente corrigido
-        dentista_nome: service.dentist, // <-- ADICIONADO: Envia o dentista corrigido
+        paciente_nome: service.patient, 
+        dentista_nome: service.dentist, 
         procedimento: service.procedure,
         descricao: service.description,
         status: service.status,
@@ -418,7 +433,7 @@ export default function ServiceDetail() {
             <h2 className="text-sm font-black text-[#DEAE60] uppercase tracking-widest mb-6">Informações do Serviço</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               
-              {/* --- CAMPOS ADICIONADOS: EDIÇÃO DO PACIENTE E DENTISTA --- */}
+              {/* --- CAMPOS ADICIONADOS: EDIÇÃO DO PACIENTE E DROPDOWN DO DENTISTA --- */}
               <div className="space-y-2">
                 <Label className="text-xs font-bold text-neutral-400 uppercase">Paciente</Label>
                 {editing ? (
@@ -430,7 +445,21 @@ export default function ServiceDetail() {
               <div className="space-y-2">
                 <Label className="text-xs font-bold text-neutral-400 uppercase">Dentista / Parceiro</Label>
                 {editing ? (
-                  <Input value={service.dentist} onChange={(e) => handleFieldChange("dentist", e.target.value)} className={inputBaseStyle} />
+                  <Select 
+                    value={dentistList.some(d => d.nome === service.dentist) ? service.dentist : undefined} 
+                    onValueChange={(value) => handleFieldChange("dentist", value)}
+                  >
+                    <SelectTrigger className="bg-neutral-900 border-neutral-800 text-white focus:ring-1 focus:ring-[#DEAE60]/50 h-10">
+                      <SelectValue placeholder={service.dentist !== "Não informado" ? service.dentist : "Selecione um parceiro..."} />
+                    </SelectTrigger>
+                    <SelectContent className="bg-neutral-900 border-neutral-800">
+                      {dentistList.map((dentist: any) => (
+                        <SelectItem key={dentist.id} value={dentist.nome}>
+                          {dentist.nome}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 ) : (
                   <p className="text-white font-bold mt-2">{service.dentist}</p>
                 )}
