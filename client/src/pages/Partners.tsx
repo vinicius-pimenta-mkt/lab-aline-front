@@ -381,6 +381,118 @@ export default function Partners() {
     return `${String(Math.floor(diff/60)).padStart(2,'0')}h${String(diff%60).padStart(2,'0')}m`;
   };
 
+  // ==========================================
+  // FUNÇÕES DE MOTOBOYS E ROTAS
+  // ==========================================
+  const handleSaveMotoboy = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await api.post("/motoboys", motoboyForm);
+      toast.success("Motoboy cadastrado com sucesso!");
+      setIsMotoboyModalOpen(false);
+      setMotoboyForm({ nome: "", telefone: "" });
+      fetchData();
+    } catch (e) {
+      toast.error("Erro ao salvar motoboy.");
+    }
+  };
+
+  const handleSaveRota = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await api.post("/motoboys/rotas", {
+        ...rotaForm,
+        valor: parseFloat(rotaForm.valor.replace(',', '.'))
+      });
+      toast.success("Rota registrada com sucesso!");
+      setIsRotaModalOpen(false);
+      setRotaForm({ motoboy_id: "", data: "", de_onde: "", para_onde: "", valor: "" });
+      fetchData();
+    } catch (e) {
+      toast.error("Erro ao salvar rota.");
+    }
+  };
+
+  const printMotoboyReport = (motoboy: any, monthYear: string, rotas: any[]) => {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return toast.error("Permita pop-ups no navegador.");
+
+    let totalMes = rotas.reduce((acc: number, curr: any) => acc + Number(curr.valor), 0);
+    let rowsHtml = '';
+
+    rotas.forEach((r: any, idx: number) => {
+      rowsHtml += `
+        <tr>
+          <td class="center" style="color: #666;">${String(idx + 1).padStart(2, '0')}</td>
+          <td>${new Date(r.data + "T00:00:00").toLocaleDateString('pt-BR')}</td>
+          <td><strong>${r.de_onde.toUpperCase()}</strong></td>
+          <td><strong>${r.para_onde.toUpperCase()}</strong></td>
+          <td class="right" style="font-weight: bold;">R$ ${Number(r.valor).toFixed(2).replace('.', ',')}</td>
+        </tr>
+      `;
+    });
+
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Relatorio_Logistica_${motoboy.nome}_${monthYear.replace('/', '-')}</title>
+        <style>
+          @page { margin: 15mm; size: A4 portrait; }
+          body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #333; font-size: 11px; line-height: 1.5; padding: 10px; }
+          .header { border-bottom: 2px solid #DEAE60; padding-bottom: 12px; margin-bottom: 25px; display: flex; justify-content: space-between; align-items: center; }
+          .header h1 { font-size: 18px; margin: 0; font-weight: 900; text-transform: uppercase; color: #111; }
+          .info { margin-bottom: 25px; background: #fafafa; padding: 15px; border: 1px solid #e5e5e7; border-radius: 12px; }
+          .info p { margin: 4px 0; font-size: 12px; }
+          table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+          th { background-color: #fafafa; border-top: 1px solid #111; border-bottom: 2px solid #111; padding: 8px; text-align: left; font-size: 10px; text-transform: uppercase; font-weight: bold; }
+          td { padding: 9px 8px; border-bottom: 1px dashed #e5e5e7; font-size: 11px; }
+          .center { text-align: center; } .right { text-align: right; }
+          .summary-box { width: 260px; float: right; margin-top: 20px; background: #fff; border-radius: 8px; }
+          .summary-total { display: flex; justify-content: space-between; font-weight: 900; font-size: 15px; border-top: 2px solid #111; padding-top: 8px; }
+          .clear { clear: both; }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <div>
+            <h1>ALINE ANTUNES</h1>
+            <p style="margin: 0; color: #666; text-transform: uppercase;">Controle de Logística e Motoboys</p>
+          </div>
+          <div style="text-align: right; font-size: 10px; color: #666; font-weight: bold;">EMISSÃO: ${new Date().toLocaleDateString('pt-BR')}</div>
+        </div>
+        <div class="info">
+          <p><strong>MOTOBOY:</strong> ${motoboy.nome.toUpperCase()}</p>
+          <p><strong>PERÍODO DE FECHAMENTO:</strong> Mês ${monthYear}</p>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th class="center" style="width: 5%;">#</th>
+              <th style="width: 15%;">Data</th>
+              <th style="width: 30%;">Origem (De)</th>
+              <th style="width: 30%;">Destino (Para)</th>
+              <th class="right" style="width: 20%;">Valor (R$)</th>
+            </tr>
+          </thead>
+          <tbody>${rowsHtml}</tbody>
+        </table>
+        <div class="summary-box">
+          <div class="summary-total">
+            <span>TOTAL A PAGAR:</span>
+            <span>R$ ${totalMes.toFixed(2).replace('.', ',')}</span>
+          </div>
+        </div>
+        <div class="clear"></div>
+      </body>
+      </html>
+    `;
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => { printWindow.print(); printWindow.close(); }, 250);
+  };
+
   const printColaboradorPdf = async (colaborador: any, monthYear: string, pontos: any[], isPayment: boolean) => {
     if (isPayment) {
       if (!paymentValue || isNaN(Number(paymentValue.replace(',','.')))) {
@@ -761,6 +873,84 @@ export default function Partners() {
               </div>
               <Button type="submit" className="w-full bg-[#DEAE60] hover:bg-[#DEAE60]/90 text-black font-black mt-4">
                 Guardar Ponto
+              </Button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* MODAL: NOVO MOTOBOY E ROTA */}
+      {/* ========================================================================= */}
+      {isMotoboyModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+          <div className="bg-neutral-900 border border-neutral-800 p-6 rounded-2xl w-full max-w-md relative">
+            <button onClick={() => setIsMotoboyModalOpen(false)} className="absolute top-4 right-4 text-neutral-500">
+              <X className="w-5 h-5"/>
+            </button>
+            <h3 className="text-xl font-black text-white uppercase mb-6 flex items-center gap-2">
+              <Bike className="w-5 h-5 text-[#DEAE60]"/> Novo Motoboy
+            </h3>
+            <form onSubmit={handleSaveMotoboy} className="space-y-4">
+              <div className="space-y-2">
+                <Label className="text-xs font-bold text-neutral-400 uppercase">Nome *</Label>
+                <Input required value={motoboyForm.nome} onChange={e => setMotoboyForm({...motoboyForm, nome: e.target.value})} className={inputBaseStyle} placeholder="Nome do Motoboy" />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-xs font-bold text-neutral-400 uppercase">Telefone</Label>
+                <Input value={motoboyForm.telefone} onChange={e => setMotoboyForm({...motoboyForm, telefone: e.target.value})} className={inputBaseStyle} placeholder="Telefone" />
+              </div>
+              <Button type="submit" className="w-full bg-[#DEAE60] hover:bg-[#DEAE60]/90 text-black font-black mt-4">
+                Salvar Motoboy
+              </Button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {isRotaModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+          <div className="bg-neutral-900 border border-neutral-800 p-6 rounded-2xl w-full max-w-md relative">
+            <button onClick={() => setIsRotaModalOpen(false)} className="absolute top-4 right-4 text-neutral-500">
+              <X className="w-5 h-5"/>
+            </button>
+            <h3 className="text-xl font-black text-white uppercase mb-6 flex items-center gap-2">
+              <Map className="w-5 h-5 text-[#DEAE60]"/> Registrar Rota
+            </h3>
+            <form onSubmit={handleSaveRota} className="space-y-4">
+              <div className="space-y-2">
+                <Label className="text-xs font-bold text-neutral-400 uppercase">Motoboy *</Label>
+                <Select required value={rotaForm.motoboy_id} onValueChange={v => setRotaForm({...rotaForm, motoboy_id: v})}>
+                  <SelectTrigger className={inputBaseStyle}>
+                    <SelectValue placeholder="Selecione o Motoboy"/>
+                  </SelectTrigger>
+                  <SelectContent className="bg-neutral-900 border-neutral-800 text-white">
+                    {motoboys.map(m => (
+                      <SelectItem key={m.id} value={m.id.toString()}>{m.nome}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label className="text-xs font-bold text-neutral-400 uppercase">Data *</Label>
+                <Input required type="date" value={rotaForm.data} onChange={e => setRotaForm({...rotaForm, data: e.target.value})} className={inputBaseStyle} />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label className="text-xs font-bold text-neutral-400 uppercase">De Onde *</Label>
+                  <Input required value={rotaForm.de_onde} onChange={e => setRotaForm({...rotaForm, de_onde: e.target.value})} className={inputBaseStyle} placeholder="Ex: Clínica" />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-xs font-bold text-neutral-400 uppercase">Para Onde *</Label>
+                  <Input required value={rotaForm.para_onde} onChange={e => setRotaForm({...rotaForm, para_onde: e.target.value})} className={inputBaseStyle} placeholder="Ex: Laboratório" />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label className="text-xs font-bold text-neutral-400 uppercase">Valor da Corrida (R$) *</Label>
+                <Input required type="number" step="0.01" value={rotaForm.valor} onChange={e => setRotaForm({...rotaForm, valor: e.target.value})} className={inputBaseStyle} placeholder="0.00" />
+              </div>
+              <Button type="submit" className="w-full bg-[#DEAE60] hover:bg-[#DEAE60]/90 text-black font-black mt-4">
+                Salvar Rota
               </Button>
             </form>
           </div>
