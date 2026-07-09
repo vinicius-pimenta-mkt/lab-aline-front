@@ -51,6 +51,9 @@ export default function Partners() {
     valor: "" 
   });
 
+  const [isEditRotaModalOpen, setIsEditRotaModalOpen] = useState(false);
+  const [editingRotaId, setEditingRotaId] = useState<number | null>(null);
+
   // Form states - RH (Colaboradores)
   const [isColabModalOpen, setIsColabModalOpen] = useState(false);
   const [colabForm, setColabForm] = useState({ nome: "", telefone: "", cargo: "" });
@@ -410,6 +413,46 @@ export default function Partners() {
       fetchData();
     } catch (e) {
       toast.error("Erro ao salvar rota.");
+    }
+  };
+
+  const handleDeleteRota = async (id: number) => {
+    if (!confirm("Tem certeza que deseja excluir esta corrida?")) return;
+    try {
+      await api.delete(`/motoboys/rotas/${id}`);
+      toast.success("Rota excluída com sucesso!");
+      fetchData();
+    } catch (e) {
+      toast.error("Erro ao excluir rota.");
+    }
+  };
+
+  const openEditRotaModal = (rota: any) => {
+    setEditingRotaId(rota.id);
+    setRotaForm({
+      motoboy_id: rota.motoboy_id.toString(),
+      data: rota.data ? rota.data.split('T')[0] : "",
+      de_onde: rota.de_onde,
+      para_onde: rota.para_onde,
+      valor: rota.valor.toString()
+    });
+    setIsEditRotaModalOpen(true);
+  };
+
+  const handleEditRotaSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await api.put(`/motoboys/rotas/${editingRotaId}`, {
+        ...rotaForm,
+        valor: parseFloat(String(rotaForm.valor).replace(',', '.'))
+      });
+      toast.success("Rota atualizada com sucesso!");
+      setIsEditRotaModalOpen(false);
+      setEditingRotaId(null);
+      setRotaForm({ motoboy_id: "", data: "", de_onde: "", para_onde: "", valor: "" });
+      fetchData();
+    } catch (e) {
+      toast.error("Erro ao atualizar rota.");
     }
   };
 
@@ -958,6 +1001,58 @@ export default function Partners() {
       )}
 
       {/* ========================================================================= */}
+      {/* MODAL: EDITAR ROTA */}
+      {/* ========================================================================= */}
+      {isEditRotaModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+          <div className="bg-neutral-900 border border-neutral-800 p-6 rounded-2xl w-full max-w-md relative shadow-2xl">
+            <button onClick={() => { setIsEditRotaModalOpen(false); setEditingRotaId(null); setRotaForm({ motoboy_id: "", data: "", de_onde: "", para_onde: "", valor: "" }); }} className="absolute top-4 right-4 text-neutral-500 hover:text-white transition-colors">
+              <X className="w-5 h-5"/>
+            </button>
+            <h3 className="text-xl font-black text-white uppercase mb-6 flex items-center gap-2">
+              <Pencil className="w-5 h-5 text-[#DEAE60]"/> Editar Corrida
+            </h3>
+            <form onSubmit={handleEditRotaSubmit} className="space-y-4">
+              <div className="space-y-2">
+                <Label className="text-xs font-bold text-neutral-400 uppercase">Motoboy *</Label>
+                <Select required value={rotaForm.motoboy_id} onValueChange={v => setRotaForm({...rotaForm, motoboy_id: v})}>
+                  <SelectTrigger className={inputBaseStyle}>
+                    <SelectValue placeholder="Selecione o Motoboy"/>
+                  </SelectTrigger>
+                  <SelectContent className="bg-neutral-900 border-neutral-800 text-white">
+                    {motoboys.map(m => (
+                      <SelectItem key={m.id} value={m.id.toString()}>{m.nome}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label className="text-xs font-bold text-neutral-400 uppercase">Data *</Label>
+                <Input required type="date" value={rotaForm.data} onChange={e => setRotaForm({...rotaForm, data: e.target.value})} className={inputBaseStyle} />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label className="text-xs font-bold text-neutral-400 uppercase">De Onde *</Label>
+                  <Input required value={rotaForm.de_onde} onChange={e => setRotaForm({...rotaForm, de_onde: e.target.value})} className={inputBaseStyle} placeholder="Ex: Clínica" />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-xs font-bold text-neutral-400 uppercase">Para Onde *</Label>
+                  <Input required value={rotaForm.para_onde} onChange={e => setRotaForm({...rotaForm, para_onde: e.target.value})} className={inputBaseStyle} placeholder="Ex: Laboratório" />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label className="text-xs font-bold text-neutral-400 uppercase">Valor da Corrida (R$) *</Label>
+                <Input required type="number" step="0.01" value={rotaForm.valor} onChange={e => setRotaForm({...rotaForm, valor: e.target.value})} className={inputBaseStyle} placeholder="0.00" />
+              </div>
+              <Button type="submit" className="w-full bg-[#DEAE60] hover:bg-[#DEAE60]/90 text-black font-black mt-4">
+                Atualizar Rota
+              </Button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
       {/* 1. DENTISTAS PARCEIROS (Tabela Principal) */}
       {/* ========================================================================= */}
       <div className="mb-12">
@@ -1388,15 +1483,34 @@ export default function Partners() {
                                       <th className="pb-2 text-[10px] font-bold text-neutral-500 uppercase tracking-widest">Origem (De)</th>
                                       <th className="pb-2 text-[10px] font-bold text-neutral-500 uppercase tracking-widest">Destino (Para)</th>
                                       <th className="pb-2 text-[10px] font-bold text-neutral-500 uppercase tracking-widest text-right">Valor</th>
+                                      <th className="pb-2 text-[10px] font-bold text-neutral-500 uppercase tracking-widest text-center w-24">Ações</th>
                                     </tr>
                                   </thead>
                                   <tbody>
                                     {monthRotas.map((rota: any) => (
-                                      <tr key={rota.id} className="border-b border-neutral-800/50 last:border-0">
+                                      <tr key={rota.id} className="border-b border-neutral-800/50 last:border-0 hover:bg-neutral-800/20 transition-colors">
                                         <td className="py-3 text-xs text-neutral-400">{new Date(rota.data + "T00:00:00").toLocaleDateString('pt-BR')}</td>
                                         <td className="py-3 text-xs font-bold text-white uppercase">{rota.de_onde}</td>
                                         <td className="py-3 text-xs font-bold text-white uppercase">{rota.para_onde}</td>
                                         <td className="py-3 text-xs font-black text-white text-right">R$ {Number(rota.valor).toFixed(2).replace('.', ',')}</td>
+                                        <td className="py-3 text-center space-x-1">
+                                          <Button 
+                                            size="icon" 
+                                            variant="ghost" 
+                                            className="w-8 h-8 text-neutral-400 hover:text-white" 
+                                            onClick={(e) => { e.stopPropagation(); openEditRotaModal(rota); }}
+                                          >
+                                            <Pencil className="w-4 h-4"/>
+                                          </Button>
+                                          <Button 
+                                            size="icon" 
+                                            variant="ghost" 
+                                            className="w-8 h-8 text-neutral-400 hover:text-red-500 hover:bg-red-500/10" 
+                                            onClick={(e) => { e.stopPropagation(); handleDeleteRota(rota.id); }}
+                                          >
+                                            <Trash2 className="w-4 h-4"/>
+                                          </Button>
+                                        </td>
                                       </tr>
                                     ))}
                                   </tbody>
