@@ -7,8 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Users, Plus, Printer, CalendarDays, Syringe, Clock, X, LogOut, Search, Trash2, RefreshCw, Receipt, Pencil } from "lucide-react";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { Users, Plus, Printer, CalendarDays, Syringe, Clock, X, LogOut, Trash2, RefreshCw, Receipt, Pencil, DollarSign } from "lucide-react";
 import { useLocation } from "wouter";
 
 interface TsbPatient {
@@ -27,7 +26,6 @@ export default function TsbDashboard() {
   const [patients, setPatients] = useState<TsbPatient[]>([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [periodFilter, setPeriodFilter] = useState("30"); 
   
   const defaultProcedure = "Limpeza Profissional (TSB)";
   const [formData, setFormData] = useState({
@@ -38,7 +36,7 @@ export default function TsbDashboard() {
   });
 
   // =========================================================================
-  // NOVOS ESTADOS DA GESTÃO FINANCEIRA TSB (SOLICITAÇÃO ALINE)
+  // GESTÃO FINANCEIRA TSB (ATUALIZADA)
   // =========================================================================
   const [activeTab, setActiveTab] = useState<"recorrencias" | "financas">("recorrencias");
   const [atendimentos, setAtendimentos] = useState<any[]>([]);
@@ -60,7 +58,9 @@ export default function TsbDashboard() {
     paciente_telefone: "",
     data: new Date().toISOString().split('T')[0],
     descricao: "",
-    procedimentos: LISTA_PROCEDIMENTOS_PADRAO.map(p => ({ name: p.name, checked: false, value: p.price.toString() }))
+    procedimentos: LISTA_PROCEDIMENTOS_PADRAO.map(p => ({ name: p.name, checked: false, value: p.price.toString() })),
+    extra_nome: "", // Campo adicionado para serviço extra customizado
+    extra_valor: "" // Campo adicionado para valor do serviço extra
   });
 
   // =========================================================================
@@ -123,20 +123,30 @@ export default function TsbDashboard() {
   const handleValorProcedimentoMudanca = (idx: number, val: string) => {
     const atualizados = [...atendimentoForm.procedimentos];
     atualizados[idx].value = val;
-    setAtendimentoForm(prev => ({ ...prev, procedimientos: atualizados }));
+    setAtendimentoForm(prev => ({ ...prev, procedimentos: atualizados }));
   };
 
   const handleSaveAtendimento = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Processa os procedimentos padrão marcados
     const procsSelecionados = atendimentoForm.procedimentos
       .filter(p => p.checked)
       .map(p => ({ name: p.name, value: parseFloat(p.value) || 0 }));
+
+    // INJEÇÃO: Inclui o serviço extra na somatória caso tenha sido preenchido pela Aline
+    if (atendimentoForm.extra_nome.trim()) {
+      procsSelecionados.push({
+        name: atendimentoForm.extra_nome.trim(),
+        value: parseFloat(atendimentoForm.extra_valor) || 0
+      });
+    }
 
     if (!atendimentoForm.paciente_nome.trim() || !atendimentoForm.data) {
       return toast.error("Preencha o nome do paciente e a data do atendimento.");
     }
     if (procsSelecionados.length === 0) {
-      return toast.error("Selecione pelo menos um procedimento realizado.");
+      return toast.error("Selecione ou digite pelo menos um procedimento realizado.");
     }
 
     const payload = {
@@ -161,7 +171,8 @@ export default function TsbDashboard() {
       setAtendimentoForm({
         paciente_selecionado: "novo", paciente_nome: "", paciente_telefone: "",
         data: new Date().toISOString().split('T')[0], descricao: "",
-        procedimentos: LISTA_PROCEDIMENTOS_PADRAO.map(p => ({ name: p.name, checked: false, value: p.price.toString() }))
+        procedimentos: LISTA_PROCEDIMENTOS_PADRAO.map(p => ({ name: p.name, checked: false, value: p.price.toString() })),
+        extra_nome: "", extra_valor: ""
       });
       fetchAtendimentos();
     } catch (err) {
@@ -171,20 +182,29 @@ export default function TsbDashboard() {
 
   const handleEditAtendimento = (at: any) => {
     setEditingAtendimentoId(at.id);
+    
+    // Mapeia o que é fixo
+    const mapeadosFixos = LISTA_PROCEDIMENTOS_PADRAO.map(p => {
+      const enc = at.procedimentos.find((pr: any) => pr.name === p.name);
+      return {
+        name: p.name,
+        checked: !!enc,
+        value: enc ? enc.value.toString() : p.price.toString()
+      };
+    });
+
+    // Detecta se existe algum procedimento que NÃO está na lista fixa (serviço extra)
+    const extraEncontrado = at.procedimentos.find((pr: any) => !LISTA_PROCEDIMENTOS_PADRAO.some(p => p.name === pr.name));
+
     setAtendimentoForm({
       paciente_selecionado: "editando",
       paciente_nome: at.paciente_nome,
       paciente_telefone: at.paciente_telefone || "",
       data: at.data,
       descricao: at.descricao || "",
-      procedimentos: LISTA_PROCEDIMENTOS_PADRAO.map(p => {
-        const enc = at.procedimentos.find((pr: any) => pr.name === p.name);
-        return {
-          name: p.name,
-          checked: !!enc,
-          value: enc ? enc.value.toString() : p.price.toString()
-        };
-      })
+      procedimentos: mapeadosFixos,
+      extra_nome: extraEncontrado ? extraEncontrado.name : "",
+      extra_valor: extraEncontrado ? extraEncontrado.value.toString() : ""
     });
     setIsAtendimentoModalOpen(true);
   };
@@ -266,6 +286,92 @@ export default function TsbDashboard() {
     setTimeout(() => { printWindow.print(); printWindow.close(); }, 250);
   };
 
+  // INJEÇÃO: FUNÇÃO DE EXPORTAR O RELATÓRIO DO PERÍODO TODO EM PDF (PADRÃO PRÓTESE)
+  const exportarRelatorioFinanceiroGeral = () => {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return toast.error("Permita pop-ups no navegador.");
+
+    const dataEmissao = new Date().toLocaleDateString('pt-BR');
+    const totalPeriodo = atendimentos.reduce((acc, curr) => acc + Number(curr.valor_total), 0);
+    let rowsHtml = '';
+
+    atendimentos.forEach((at, idx) => {
+      const dataFormatada = new Date(at.data + "T00:00:00").toLocaleDateString('pt-BR');
+      const procsTexto = at.procedimentos?.map((p: any) => `${p.name} (R$ ${Number(p.value).toFixed(0)})`).join(', ') || '-';
+      
+      rowsHtml += `
+        <tr>
+          <td class="center" style="color:#666;">${String(idx + 1).padStart(2, '0')}</td>
+          <td>${dataFormatada}</td>
+          <td><strong>${at.paciente_nome.toUpperCase()}</strong></td>
+          <td style="color:#444;">${procsTexto}</td>
+          <td class="right" style="font-weight: bold; color: #0f766e;">R$ ${Number(at.valor_total).toFixed(2).replace('.', ',')}</td>
+        </tr>
+      `;
+    });
+
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Relatorio_Financeiro_TSB</title>
+        <style>
+          @page { margin: 15mm; size: A4 portrait; }
+          body { font-family: Arial, sans-serif; color: #333; font-size: 11px; line-height: 1.5; padding: 10px; }
+          .header { border-bottom: 2px solid #0f766e; padding-bottom: 12px; margin-bottom: 25px; display: flex; justify-content: space-between; align-items: center; }
+          .header h1 { font-size: 18px; margin: 0; font-weight: 900; color: #0f766e; text-transform: uppercase; }
+          .info { margin-bottom: 25px; background: #fafafa; padding: 15px; border: 1px solid #e5e5e7; border-radius: 12px; }
+          .info p { margin: 4px 0; font-size: 12px; }
+          table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+          th { background-color: #fafafa; border-top: 1px solid #111; border-bottom: 2px solid #111; padding: 8px; text-align: left; font-size: 10px; text-transform: uppercase; font-weight: bold; color: #555; }
+          td { padding: 9px 8px; border-bottom: 1px dashed #e5e5e7; }
+          .center { text-align: center; } .right { text-align: right; }
+          .summary-box { width: 260px; float: right; margin-top: 20px; }
+          .summary-total { display: flex; justify-content: space-between; font-weight: 900; font-size: 15px; border-top: 2px solid #0f766e; padding-top: 8px; color: #0f766e; }
+          .clear { clear: both; }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <div>
+            <h1>ALINE ANTUNES - CLINIC TSB</h1>
+            <p style="margin: 2px 0 0 0; color: #666; text-transform: uppercase;">Relatório Geral de Faturamento</p>
+          </div>
+          <div style="text-align: right; font-size: 10px; color: #666; font-weight: bold;">EMISSÃO: ${dataEmissao}</div>
+        </div>
+        <div class="info">
+          <p><strong>FILTRO DE PERÍODO:</strong> MÊS / HISTÓRICO (${filtroFinancas.toUpperCase()})</p>
+          <p><strong>QUANTIDADE DE PROCEDIMENTOS DO PERÍODO:</strong> ${atendimentos.length} atendimentos</p>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th class="center" style="width: 5%;">#</th>
+              <th style="width: 12%;">Data</th>
+              <th style="width: 25%;">Paciente</th>
+              <th style="width: 43%;">Procedimentos Compilados</th>
+              <th class="right" style="width: 15%;">Valor Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rowsHtml || '<tr><td colSpan="5" class="center">Nenhum atendimento no período.</td></tr>'}
+          </tbody>
+        </table>
+        <div class="summary-box">
+          <div class="summary-total">
+            <span>FATURAMENTO TOTAL:</span>
+            <span>R$ ${totalPeriodo.toFixed(2).replace('.', ',')}</span>
+          </div>
+        </div>
+        <div class="clear"></div>
+      </body>
+      </html>
+    `;
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => { printWindow.print(); printWindow.close(); }, 250);
+  };
 
   // =========================================================================
   // MÉTODOS ORIGINAIS DE RECORRÊNCIA TSB (MANTIDOS INTEGRALMENTE)
@@ -324,16 +430,6 @@ export default function TsbDashboard() {
     setLocation("/tsb-login");
   };
 
-  const chartData = [
-    { name: "Total", qtd: patients.length },
-    { name: "Próximos 30 dias", qtd: patients.filter(p => {
-        const prox = new Date(p.proximo_atendimento + "T00:00:00");
-        const limite = new Date(); limite.setDate(limite.getDate() + 30);
-        return prox <= limite && prox >= new Date();
-      }).length 
-    }
-  ];
-
   const inputBaseStyle = "bg-neutral-900 border-neutral-800 text-white placeholder-neutral-600 focus-visible:ring-1 focus-visible:ring-teal-500/50";
 
   if (loading) return <div className="min-h-screen bg-transparent p-6 text-teal-500 font-bold text-center py-20">Carregando Clinic TSB...</div>;
@@ -341,9 +437,7 @@ export default function TsbDashboard() {
   return (
     <div className="min-h-screen bg-transparent p-6 pb-24">
       
-      {/* ========================================================================= */}
-      {/* NOVO MODAL: REGISTRAR ATENDIMENTO FINANCEIRO TSB */}
-      {/* ========================================================================= */}
+      {/* MODAL: REGISTRAR / EDITAR ATENDIMENTO FINANCEIRO TSB */}
       {isAtendimentoModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
           <div className="bg-neutral-900 border border-neutral-800 p-6 rounded-2xl w-full max-w-lg shadow-2xl max-h-[90vh] overflow-y-auto custom-scrollbar relative">
@@ -387,7 +481,7 @@ export default function TsbDashboard() {
               </div>
 
               <div className="space-y-3 border-t border-neutral-800 pt-4">
-                <Label className="text-xs font-bold text-teal-400 uppercase tracking-wider block mb-1">Procedimentos e Valores (Editáveis)</Label>
+                <Label className="text-xs font-bold text-teal-400 uppercase tracking-wider block mb-1">Procedimentos e Valores Fixos</Label>
                 {atendimentoForm.procedimentos.map((proc, idx) => (
                   <div key={proc.name} className="flex items-center justify-between gap-4 p-2 bg-neutral-950/40 border border-neutral-800/60 rounded-lg">
                     <label className="flex items-center gap-3 cursor-pointer text-sm font-bold text-white uppercase flex-1">
@@ -404,13 +498,26 @@ export default function TsbDashboard() {
                 ))}
               </div>
 
+              {/* INJEÇÃO: CAMPOS DE SERVIÇO EXTRA SOLICITADOS PELA ALINE */}
+              <div className="space-y-3 border-t border-neutral-800 pt-4">
+                <Label className="text-xs font-bold text-amber-400 uppercase tracking-wider block">Adicionar Serviço Extra Customizado (Opcional)</Label>
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="col-span-2">
+                    <Input value={atendimentoForm.extra_nome} onChange={e => setAtendimentoForm({...atendimentoForm, extra_nome: e.target.value})} className={inputBaseStyle} placeholder="Nome do procedimento extra..." />
+                  </div>
+                  <div>
+                    <Input type="number" step="0.01" value={atendimentoForm.extra_valor} onChange={e => setAtendimentoForm({...atendimentoForm, extra_valor: e.target.value})} className={inputBaseStyle} placeholder="R$ 0,00" />
+                  </div>
+                </div>
+              </div>
+
               <div className="space-y-2 border-t border-neutral-800 pt-4">
-                <Label className="text-xs font-bold text-neutral-400 uppercase">Descrição do que foi feito</Label>
-                <Textarea value={atendimentoForm.descricao} onChange={e => setAtendimentoForm({...atendimentoForm, descricao: e.target.value})} rows={3} className={inputBaseStyle} placeholder="Descreva os detalhes do atendimento clínico..." />
+                <Label className="text-xs font-bold text-neutral-400 uppercase">Descrição / Observações do Caso</Label>
+                <Textarea value={atendimentoForm.descricao} onChange={e => setAtendimentoForm({...atendimentoForm, descricao: e.target.value})} rows={3} className={inputBaseStyle} placeholder="Descreva os detalhes clínicos do atendimento..." />
               </div>
 
               <Button type="submit" className="w-full bg-teal-600 hover:bg-teal-700 text-white font-black mt-4 uppercase">
-                {editingAtendimentoId ? "Atualizar Registro" : "Confirmar e Registrar"}
+                {editingAtendimentoId ? "Atualizar Registro" : "Confirmar e Registrar Atendimento"}
               </Button>
             </form>
           </div>
@@ -453,14 +560,14 @@ export default function TsbDashboard() {
           <p className="text-neutral-400 text-sm mt-2">Controle de retornos preventivos e faturamento de procedimentos</p>
         </div>
         
-        {/* BOTÕES DE CADASTRO E LOGIN */}
         <div className="flex flex-wrap gap-3">
           <Button onClick={() => {
             setEditingAtendimentoId(null);
             setAtendimentoForm({
               paciente_selecionado: "novo", paciente_nome: "", paciente_telefone: "",
               data: new Date().toISOString().split('T')[0], descricao: "",
-              procedimentos: LISTA_PROCEDIMENTOS_PADRAO.map(p => ({ name: p.name, checked: false, value: p.price.toString() }))
+              procedimentos: LISTA_PROCEDIMENTOS_PADRAO.map(p => ({ name: p.name, checked: false, value: p.price.toString() })),
+              extra_nome: "", extra_valor: ""
             });
             setIsAtendimentoModalOpen(true);
           }} className="bg-transparent border border-teal-500/30 hover:bg-teal-500/10 text-teal-400 font-bold h-11">
@@ -475,7 +582,7 @@ export default function TsbDashboard() {
         </div>
       </div>
 
-      {/* NAVEGAÇÃO DE ABAS INTELEGENTE */}
+      {/* NAVEGAÇÃO DE ABAS */}
       <div className="flex border-b border-neutral-800 mb-8 gap-2">
         <button onClick={() => setActiveTab("recorrencias")} className={`pb-3 px-4 font-black uppercase text-xs tracking-wider border-b-2 transition-colors ${activeTab === "recorrencias" ? "border-teal-500 text-white" : "border-transparent text-neutral-500 hover:text-neutral-300"}`}>
           Pacientes e Recorrências
@@ -485,42 +592,70 @@ export default function TsbDashboard() {
         </button>
       </div>
 
-      {/* ========================================================================= */}
-      {/* ABA 1: RECORRÊNCIAS E GRÁFICOS ORIGINAIS (INTACTOS) */}
-      {/* ========================================================================= */}
+      {/* ABA 1: RECORRÊNCIAS (INDICADORES CORRIGIDOS COM ÍCONES ANTES DA INFORMAÇÃO) */}
       {activeTab === "recorrencias" && (
         <>
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-            <Card className="bg-neutral-900 border-neutral-800 p-6 flex items-center justify-between shadow-xl">
-              <div><p className="text-neutral-400 text-xs font-bold uppercase tracking-widest">Pacientes Cadastrados</p><p className="text-4xl font-black text-white mt-2">{patients.length}</p></div>
-              <div className="bg-teal-500/10 p-4 rounded-xl border border-teal-500/20"><Users className="w-6 h-6 text-teal-400"/></div>
-            </Card>
-            <Card className="bg-neutral-900 border-neutral-800 p-6 flex items-center justify-between shadow-xl">
-              <div>
-                <p className="text-neutral-400 text-xs font-bold uppercase tracking-widest">Retornos nos Próximos 30 dias</p>
-                <p className="text-4xl font-black text-amber-400 mt-2">
-                  {patients.filter(p => {
-                    const prox = new Date(p.proximo_atendimento + "T00:00:00");
-                    const limite = new Date(); limite.setDate(limite.getDate() + 30);
-                    return prox <= limite && prox >= new Date();
-                  }).length}
-                </p>
+            {/* CARD 1: ÍCONE LADO A LADO ANTES DO TEXTO */}
+            <Card className="bg-neutral-900 border-neutral-800 p-6 shadow-xl">
+              <div className="flex items-center gap-4">
+                <div className="bg-teal-500/10 p-4 rounded-xl border border-teal-500/20 shrink-0">
+                  <Users className="w-6 h-6 text-teal-400"/>
+                </div>
+                <div>
+                  <p className="text-neutral-400 text-xs font-bold uppercase tracking-widest">Pacientes Cadastrados</p>
+                  <p className="text-3xl font-black text-white mt-1">{patients.length}</p>
+                </div>
               </div>
-              <div className="bg-amber-500/10 p-4 rounded-xl border border-amber-500/20"><Clock className="w-6 h-6 text-amber-400"/></div>
             </Card>
-            <Card className="bg-neutral-900 border-neutral-800 p-6 shadow-xl flex items-center justify-center">
-              <ResponsiveContainer width="100%" height={80}>
-                <BarChart data={chartData} layout="vertical"><XAxis type="number" hide/><YAxis dataKey="name" type="category" stroke="#737373" width={100} tick={{fontSize:11}}/><Tooltip contentStyle={{backgroundColor:"#171717",borderColor:"#262626"}}/><Bar dataKey="qtd" fill="#0f766e" radius={[0,4,4,0]}/></BarChart>
-              </ResponsiveContainer>
+
+            {/* CARD 2: ÍCONE LADO A LADO ANTES DO TEXTO */}
+            <Card className="bg-neutral-900 border-neutral-800 p-6 shadow-xl">
+              <div className="flex items-center gap-4">
+                <div className="bg-amber-500/10 p-4 rounded-xl border border-amber-500/20 shrink-0">
+                  <Clock className="w-6 h-6 text-amber-400"/>
+                </div>
+                <div>
+                  <p className="text-neutral-400 text-xs font-bold uppercase tracking-widest">Retornos nos Próximos 30 dias</p>
+                  <p className="text-3xl font-black text-amber-400 mt-1">
+                    {patients.filter(p => {
+                      const prox = new Date(p.proximo_atendimento + "T00:00:00");
+                      const limite = new Date(); limite.setDate(limite.getDate() + 30);
+                      return prox <= limite && prox >= new Date();
+                    }).length}
+                  </p>
+                </div>
+              </div>
+            </Card>
+
+            {/* CARD 3: RESTRUTURADO PURAMENTE EM NÚMEROS TEXTUAIS SEM BARRAS */}
+            <Card className="bg-neutral-900 border-neutral-800 p-6 shadow-xl">
+              <div className="flex items-center gap-4 h-full">
+                <div className="bg-neutral-800 p-4 rounded-xl border border-neutral-700 shrink-0">
+                  <CalendarDays className="w-6 h-6 text-neutral-400"/>
+                </div>
+                <div className="grid grid-cols-2 gap-2 w-full">
+                  <div>
+                    <span className="text-[10px] text-neutral-500 font-bold uppercase block tracking-wider">Total Geral</span>
+                    <span className="text-xl font-black text-white">{patients.length}</span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-neutral-500 font-bold uppercase block tracking-wider">Agendados</span>
+                    <span className="text-xl font-black text-teal-400">
+                      {patients.filter(p => new Date(p.proximo_atendimento + "T00:00:00") >= new Date()).length}
+                    </span>
+                  </div>
+                </div>
+              </div>
             </Card>
           </div>
 
           <Card className="bg-neutral-900 border-neutral-800 overflow-hidden shadow-xl">
             <div className="p-6 border-b border-neutral-800"><h2 className="text-sm font-black text-teal-400 uppercase tracking-widest">Lista de Controle de Prevenção e Retornos</h2></div>
             <div className="overflow-x-auto">
-              <table className="w-full">
+              <table className="w-full text-left">
                 <thead className="bg-neutral-950 border-b border-neutral-800">
-                  <tr><th className="p-4 text-left text-xs font-bold text-neutral-500 uppercase">Paciente</th><th className="p-4 text-left text-xs font-bold text-neutral-500 uppercase">Telefone</th><th className="p-4 text-left text-xs font-bold text-neutral-500 uppercase">Próximo Retorno</th><th className="p-4 text-left text-xs font-bold text-neutral-500 uppercase">Procedimento Vinculado</th><th className="p-4 text-left text-xs font-bold text-neutral-500 uppercase bg-neutral-950/40 text-center w-32">Ações</th></tr>
+                  <tr><th className="p-4 text-xs font-bold text-neutral-500 uppercase">Paciente</th><th className="p-4 text-xs font-bold text-neutral-500 uppercase">Telefone</th><th className="p-4 text-xs font-bold text-neutral-500 uppercase">Próximo Retorno</th><th className="p-4 text-xs font-bold text-neutral-500 uppercase">Procedimento Vinculado</th><th className="p-4 text-xs font-bold text-neutral-500 uppercase text-center w-32">Ações</th></tr>
                 </thead>
                 <tbody className="divide-y divide-neutral-800/50">
                   {patients.map((p) => {
@@ -528,14 +663,14 @@ export default function TsbDashboard() {
                     const isAtrasado = proxDate < new Date();
                     return (
                       <tr key={p.id} className="hover:bg-neutral-800/20 transition-colors">
-                        <td className="p-4 text-white font-bold text-sm">{p.nome}</td>
+                        <td className="p-4 text-white font-bold text-sm uppercase">{p.nome}</td>
                         <td className="p-4 text-neutral-400 text-sm">{p.telefone || "-"}</td>
                         <td className="p-4 text-sm font-medium">
                           <span className={isAtrasado ? "text-red-400 font-bold" : "text-emerald-400"}>
                             {proxDate.toLocaleDateString('pt-BR')} {isAtrasado && "⚠️"}
                           </span>
                         </td>
-                        <td className="p-4 text-neutral-400 text-sm">{p.procedimento}</td>
+                        <td className="p-4 text-neutral-400 text-sm uppercase">{p.procedimento}</td>
                         <td className="p-4 text-center space-x-2">
                           <Button onClick={() => handleRenew(p)} size="icon" variant="ghost" className="h-8 w-8 text-teal-600 hover:bg-teal-50" title="Confirmar Retorno do Paciente"><RefreshCw className="w-4 h-4"/></Button>
                           <Button onClick={() => handleDelete(p.id)} size="icon" variant="ghost" className="h-8 w-8 text-red-500 hover:bg-red-50" title="Apagar Paciente"><Trash2 className="w-4 h-4"/></Button>
@@ -551,16 +686,46 @@ export default function TsbDashboard() {
         </>
       )}
 
-      {/* ========================================================================= */}
-      {/* ABA 2: FECHAMENTO FINANCEIRO E ATENDIMENTOS TSB (NOVA SOLICITAÇÃO) */}
-      {/* ========================================================================= */}
+      {/* ABA 2: FECHAMENTO FINANCEIRO E PROMOÇÃO DE CARDS ATUALIZADOS */}
       {activeTab === "financas" && (
         <>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+            {/* NOVO CARD SOLICITADO: FATURAMENTO DOS ÚLTIMOS 30 DIAS / PERÍODO REGISTRADO AUTOMATICAMENTE */}
+            <Card className="bg-neutral-900 border-neutral-800 p-6 shadow-xl relative overflow-hidden">
+              <div className="flex items-center gap-4">
+                <div className="bg-emerald-500/10 p-4 rounded-xl border border-emerald-500/20 shrink-0">
+                  <DollarSign className="w-6 h-6 text-emerald-400"/>
+                </div>
+                <div>
+                  <span className="text-xs font-bold uppercase tracking-widest text-neutral-400 block">Faturamento Últimos 30 Dias (Período)</span>
+                  <span className="text-3xl font-black text-emerald-400 mt-1 block">
+                    {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(
+                      atendimentos.reduce((acc, curr) => acc + (curr.valor_total || 0), 0)
+                    )}
+                  </span>
+                </div>
+              </div>
+            </Card>
+
+            {/* CARD DE CONTROLE DE EXPEDIENTES */}
+            <Card className="bg-neutral-900 border-neutral-800 p-6 shadow-xl">
+              <div className="flex items-center gap-4">
+                <div className="bg-teal-500/10 p-4 rounded-xl border border-teal-500/20 shrink-0">
+                  <Receipt className="w-6 h-6 text-teal-400"/>
+                </div>
+                <div>
+                  <span className="text-xs font-bold uppercase tracking-widest text-neutral-400 block">Atendimentos Efetuados</span>
+                  <span className="text-3xl font-black text-white mt-1 block">{atendimentos.length} casos</span>
+                </div>
+              </div>
+            </Card>
+          </div>
+
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
             <div className="flex items-center gap-2 bg-neutral-900 border border-neutral-800 rounded-lg p-1 pr-2">
               <div className="bg-neutral-800 p-2 rounded-md"><CalendarDays className="w-4 h-4 text-teal-400"/></div>
               <Select value={filtroFinancas} onValueChange={setFiltroFinancas}>
-                <SelectTrigger className="border-0 bg-transparent text-white focus:ring-0 w-44">
+                <SelectTrigger className="border-0 bg-transparent text-white focus:ring-0 w-48">
                   <SelectValue placeholder="Período" />
                 </SelectTrigger>
                 <SelectContent className="bg-neutral-900 border-neutral-800 text-white">
@@ -572,15 +737,14 @@ export default function TsbDashboard() {
                 </SelectContent>
               </Select>
             </div>
-            
-            <Card className="bg-neutral-900/60 border-neutral-800 px-6 py-3 shadow-md">
-              <span className="text-xs font-bold uppercase tracking-wider text-neutral-400 block">Faturamento do Período</span>
-              <span className="text-2xl font-black text-teal-400">
-                {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(
-                  atendimentos.reduce((acc, curr) => acc + (curr.valor_total || 0), 0)
-                )}
-              </span>
-            </Card>
+
+            {/* INJEÇÃO: BOTÃO PARA EXPORTAR TODO O RELATÓRIO DO PERÍODO FILTRADO EM PDF */}
+            <Button 
+              onClick={exportarRelatorioFinanceiroGeral}
+              className="bg-neutral-800 border border-neutral-700 hover:bg-neutral-700 text-white font-bold h-11 w-full sm:w-auto flex items-center gap-2"
+            >
+              <Printer className="w-4 h-4 text-[#DEAE60]"/> Exportar Relatório em PDF
+            </Button>
           </div>
 
           <Card className="bg-neutral-900 border-neutral-800 overflow-hidden shadow-xl">
@@ -609,7 +773,7 @@ export default function TsbDashboard() {
                       <td className="p-4 text-xs text-neutral-300">
                         <div className="flex flex-wrap gap-1">
                           {at.procedimentos?.map((p: any) => (
-                            <span key={p.name} className="bg-neutral-950 px-2 py-0.5 rounded border border-neutral-800 font-medium">
+                            <span key={p.name} className="bg-neutral-950 px-2 py-0.5 rounded border border-neutral-800 font-medium text-[11px] uppercase text-neutral-300">
                               {p.name} (R$ {Number(p.value).toFixed(0)})
                             </span>
                           ))}
