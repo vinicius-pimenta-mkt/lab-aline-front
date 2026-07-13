@@ -60,7 +60,8 @@ export default function TsbDashboard() {
     descricao: "",
     procedimentos: LISTA_PROCEDIMENTOS_PADRAO.map(p => ({ name: p.name, checked: false, value: p.price.toString() })),
     extra_nome: "", // Campo adicionado para serviço extra customizado
-    extra_valor: "" // Campo adicionado para valor do serviço extra
+    extra_valor: "", // Campo adicionado para valor do serviço extra
+    proximo_retorno_meses: "6"
   });
 
   // =========================================================================
@@ -108,7 +109,8 @@ export default function TsbDashboard() {
           ...prev,
           paciente_selecionado: val,
           paciente_nome: encontrado.nome,
-          paciente_telefone: encontrado.telefone
+          paciente_telefone: encontrado.telefone,
+          proximo_retorno_meses: "6"
         }));
       }
     }
@@ -154,7 +156,8 @@ export default function TsbDashboard() {
       paciente_telefone: atendimentoForm.paciente_telefone,
       data: atendimentoForm.data,
       descricao: atendimentoForm.descricao,
-      procedimentos: procsSelecionados
+      procedimentos: procsSelecionados,
+      proximo_retorno_meses: "6"
     };
 
     try {
@@ -478,6 +481,31 @@ export default function TsbDashboard() {
               <div className="space-y-2">
                 <Label className="text-xs font-bold text-neutral-400 uppercase">Data do Atendimento *</Label>
                 <Input required type="date" value={atendimentoForm.data} onChange={e => setAtendimentoForm({...atendimentoForm, data: e.target.value})} className={inputBaseStyle} />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label className="text-xs font-bold text-neutral-400 uppercase">Data do Atendimento *</Label>
+                  <Input required type="date" value={atendimentoForm.data} onChange={e => setAtendimentoForm({...atendimentoForm, data: e.target.value})} className={inputBaseStyle} />
+                </div>
+                
+                {/* --- INJEÇÃO DO NOVO CAMPO DE RETORNO --- */}
+                <div className="space-y-2">
+                  <Label className="text-xs font-bold text-teal-400 uppercase">Agendar Próximo Retorno</Label>
+                  <Select value={atendimentoForm.proximo_retorno_meses} onValueChange={v => setAtendimentoForm({...atendimentoForm, proximo_retorno_meses: v})}>
+                    <SelectTrigger className={inputBaseStyle}>
+                      <SelectValue placeholder="Selecione o prazo" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-neutral-900 border-neutral-800 text-white">
+                      <SelectItem value="0">Não agendar retorno</SelectItem>
+                      <SelectItem value="3">Em 3 Meses</SelectItem>
+                      <SelectItem value="4">Em 4 Meses</SelectItem>
+                      <SelectItem value="6">Em 6 Meses (Padrão)</SelectItem>
+                      <SelectItem value="12">Em 12 Meses</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                {/* -------------------------------------- */}
               </div>
 
               <div className="space-y-3 border-t border-neutral-800 pt-4">
