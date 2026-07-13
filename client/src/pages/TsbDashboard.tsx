@@ -28,7 +28,6 @@ export default function TsbDashboard() {
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   
-  // ESTADOS PARA EDIÇÃO DO PACIENTE (Aba 1)
   const [isEditPatientModalOpen, setIsEditPatientModalOpen] = useState(false);
   const [editingPatientId, setEditingPatientId] = useState<number | null>(null);
 
@@ -40,9 +39,6 @@ export default function TsbDashboard() {
     proximo_atendimento: ""
   });
 
-  // =========================================================================
-  // GESTÃO FINANCEIRA TSB E ATENDIMENTOS (Aba 2)
-  // =========================================================================
   const [activeTab, setActiveTab] = useState<"recorrencias" | "financas">("recorrencias");
   const [atendimentos, setAtendimentos] = useState<any[]>([]);
   const [filtroFinancas, setFiltroFinancas] = useState("mes");
@@ -63,15 +59,12 @@ export default function TsbDashboard() {
     paciente_telefone: "",
     data: new Date().toISOString().split('T')[0],
     descricao: "",
-    proximo_retorno_meses: "6", // Padrão
+    proximo_retorno_meses: "6", 
     procedimentos: LISTA_PROCEDIMENTOS_PADRAO.map(p => ({ name: p.name, checked: false, value: p.price.toString() })),
     extra_nome: "", 
     extra_valor: "" 
   });
 
-  // =========================================================================
-  // CARGA DE DADOS
-  // =========================================================================
   const fetchPatients = async () => {
     try {
       const token = localStorage.getItem("tsb_token");
@@ -101,13 +94,12 @@ export default function TsbDashboard() {
     fetchAtendimentos();
   }, [filtroFinancas]);
 
-  // =========================================================================
-  // FUNÇÕES DE RECORRÊNCIA E PACIENTES (Aba 1)
-  // =========================================================================
+  // CÁLCULO INTELIGENTE DO PRÓXIMO RETORNO BASEADO NO CAMPO LIVRE
   useEffect(() => {
-    if (formData.ultimo_atendimento && formData.recorrencia_meses) {
+    if (formData.ultimo_atendimento && formData.recorrencia_meses !== "") {
+      const meses = parseInt(formData.recorrencia_meses) || 0;
       const data = new Date(formData.ultimo_atendimento + "T00:00:00");
-      data.setMonth(data.getMonth() + parseInt(formData.recorrencia_meses));
+      data.setMonth(data.getMonth() + meses);
       setFormData((prev) => ({ ...prev, proximo_atendimento: data.toISOString().split("T")[0] }));
     }
   }, [formData.ultimo_atendimento, formData.recorrencia_meses]);
@@ -130,7 +122,6 @@ export default function TsbDashboard() {
     }
   };
 
-  // Funções de Edição do Paciente
   const handleOpenEditPatientModal = (patient: TsbPatient) => {
     setEditingPatientId(patient.id);
     setFormData({
@@ -150,8 +141,16 @@ export default function TsbDashboard() {
     e.preventDefault();
     try {
       const token = localStorage.getItem("tsb_token");
-      await api.put(`/tsb/${editingPatientId}`, formData, { headers: { Authorization: `Bearer ${token}` } });
-      toast.success("Cadastro do paciente atualizado com sucesso!");
+      
+      // MÁGICA DE SINCRONIZAÇÃO: Injeta o preço do último procedimento para ir para os relatórios
+      const procInfo = LISTA_PROCEDIMENTOS_PADRAO.find(p => p.name === formData.ultimo_procedimento);
+      const payload = {
+        ...formData,
+        ultimo_procedimento_valor: procInfo ? procInfo.price : 0
+      };
+
+      await api.put(`/tsb/${editingPatientId}`, payload, { headers: { Authorization: `Bearer ${token}` } });
+      toast.success("Cadastro atualizado e financeiro sincronizado!");
       setIsEditPatientModalOpen(false);
       setEditingPatientId(null);
       setFormData({
@@ -160,6 +159,7 @@ export default function TsbDashboard() {
         ultimo_atendimento: new Date().toISOString().split('T')[0], proximo_atendimento: ""
       });
       fetchPatients();
+      fetchAtendimentos(); // Recarrega a aba financeira imediatamente
     } catch (err) {
       toast.error("Erro ao atualizar dados do paciente.");
     }
@@ -193,9 +193,6 @@ export default function TsbDashboard() {
     setLocation("/tsb-login");
   };
 
-  // =========================================================================
-  // FUNÇÕES DE ATENDIMENTO FINANCEIRO (Aba 2)
-  // =========================================================================
   const handleSelectPacienteMudanca = (val: string) => {
     if (val === "novo") {
       setAtendimentoForm(prev => ({ ...prev, paciente_selecionado: "novo", paciente_nome: "", paciente_telefone: "" }));
@@ -272,7 +269,7 @@ export default function TsbDashboard() {
         extra_nome: "", extra_valor: ""
       });
       fetchAtendimentos();
-      fetchPatients(); // Atualiza a aba 1 caso um retorno automático tenha sido criado
+      fetchPatients();
     } catch (err) {
       toast.error("Erro ao registrar atendimento.");
     }
@@ -298,7 +295,7 @@ export default function TsbDashboard() {
       paciente_telefone: at.paciente_telefone || "",
       data: at.data,
       descricao: at.descricao || "",
-      proximo_retorno_meses: "0", // Na edição, por padrão, não agenda outro novo.
+      proximo_retorno_meses: "0",
       procedimentos: mapeadosFixos,
       extra_nome: extraEncontrado ? extraEncontrado.name : "",
       extra_valor: extraEncontrado ? extraEncontrado.value.toString() : ""
@@ -520,20 +517,17 @@ export default function TsbDashboard() {
                   <Input required type="date" value={atendimentoForm.data} onChange={e => setAtendimentoForm({...atendimentoForm, data: e.target.value})} className={inputBaseStyle} />
                 </div>
                 
+                {/* CAMPO NOVO: NÚMERO LIVRE PARA A RECORRÊNCIA */}
                 <div className="space-y-2">
-                  <Label className="text-xs font-bold text-teal-400 uppercase">Agendar Próximo Retorno</Label>
-                  <Select value={atendimentoForm.proximo_retorno_meses} onValueChange={v => setAtendimentoForm({...atendimentoForm, proximo_retorno_meses: v})}>
-                    <SelectTrigger className={inputBaseStyle}>
-                      <SelectValue placeholder="Selecione o prazo" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-neutral-900 border-neutral-800 text-white">
-                      <SelectItem value="0">Não agendar retorno automático</SelectItem>
-                      <SelectItem value="3">Em 3 Meses</SelectItem>
-                      <SelectItem value="4">Em 4 Meses</SelectItem>
-                      <SelectItem value="6">Em 6 Meses (Padrão)</SelectItem>
-                      <SelectItem value="12">Em 12 Meses</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <Label className="text-xs font-bold text-teal-400 uppercase">Agendar Próximo Retorno (Meses)</Label>
+                  <Input 
+                    type="number" 
+                    min="0"
+                    value={atendimentoForm.proximo_retorno_meses} 
+                    onChange={e => setAtendimentoForm({...atendimentoForm, proximo_retorno_meses: e.target.value})} 
+                    className={inputBaseStyle} 
+                    placeholder="0 para não agendar"
+                  />
                 </div>
               </div>
 
@@ -581,7 +575,7 @@ export default function TsbDashboard() {
       )}
 
 
-      {/* MODAL ORIGINAL: ADICIONAR PACIENTE RECORRÊNCIA */}
+      {/* MODAL: ADICIONAR PACIENTE RECORRÊNCIA */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
           <div className="bg-neutral-900 border border-neutral-800 p-6 rounded-2xl w-full max-w-md relative shadow-2xl">
@@ -616,12 +610,17 @@ export default function TsbDashboard() {
               </div>
 
               <div className="grid grid-cols-2 gap-4">
+                {/* CAMPO NOVO: NÚMERO LIVRE PARA A RECORRÊNCIA */}
                 <div className="space-y-2">
                   <Label className="text-xs font-bold text-neutral-400 uppercase">Recorrência (Meses)</Label>
-                  <Select value={formData.recorrencia_meses} onValueChange={v=>setFormData({...formData, recorrencia_meses:v})}>
-                    <SelectTrigger className={inputBaseStyle}><SelectValue /></SelectTrigger>
-                    <SelectContent className="bg-neutral-900 border-neutral-800 text-white"><SelectItem value="3">3 Meses</SelectItem><SelectItem value="4">4 Meses</SelectItem><SelectItem value="6">6 Meses</SelectItem><SelectItem value="12">12 Meses</SelectItem></SelectContent>
-                  </Select>
+                  <Input 
+                    type="number" 
+                    min="0"
+                    value={formData.recorrencia_meses} 
+                    onChange={e => setFormData({...formData, recorrencia_meses: e.target.value})} 
+                    className={inputBaseStyle} 
+                    placeholder="Ex: 6"
+                  />
                 </div>
                 <div className="space-y-2"><Label className="text-xs font-bold text-neutral-400 uppercase">Último Atendimento *</Label><Input type="date" required value={formData.ultimo_atendimento} onChange={e=>setFormData({...formData, ultimo_atendimento:e.target.value})} className={inputBaseStyle} /></div>
               </div>
@@ -672,12 +671,17 @@ export default function TsbDashboard() {
               </div>
 
               <div className="grid grid-cols-2 gap-4">
+                {/* CAMPO NOVO: NÚMERO LIVRE PARA A RECORRÊNCIA */}
                 <div className="space-y-2">
                   <Label className="text-xs font-bold text-neutral-400 uppercase">Recorrência (Meses)</Label>
-                  <Select value={formData.recorrencia_meses} onValueChange={v=>setFormData({...formData, recorrencia_meses:v})}>
-                    <SelectTrigger className={inputBaseStyle}><SelectValue /></SelectTrigger>
-                    <SelectContent className="bg-neutral-900 border-neutral-800 text-white"><SelectItem value="3">3 Meses</SelectItem><SelectItem value="4">4 Meses</SelectItem><SelectItem value="6">6 Meses</SelectItem><SelectItem value="12">12 Meses</SelectItem></SelectContent>
-                  </Select>
+                  <Input 
+                    type="number" 
+                    min="0"
+                    value={formData.recorrencia_meses} 
+                    onChange={e => setFormData({...formData, recorrencia_meses: e.target.value})} 
+                    className={inputBaseStyle} 
+                    placeholder="Ex: 6"
+                  />
                 </div>
                 <div className="space-y-2"><Label className="text-xs font-bold text-neutral-400 uppercase">Último Atendimento *</Label><Input type="date" required value={formData.ultimo_atendimento} onChange={e=>setFormData({...formData, ultimo_atendimento:e.target.value})} className={inputBaseStyle} /></div>
               </div>
@@ -728,7 +732,7 @@ export default function TsbDashboard() {
         </button>
       </div>
 
-      {/* ABA 1: RECORRÊNCIAS (INDICADORES CORRIGIDOS COM ÍCONES ANTES DA INFORMAÇÃO) */}
+      {/* ABA 1: RECORRÊNCIAS */}
       {activeTab === "recorrencias" && (
         <>
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
@@ -828,7 +832,7 @@ export default function TsbDashboard() {
         </>
       )}
 
-      {/* ABA 2: FECHAMENTO FINANCEIRO E PROMOÇÃO DE CARDS ATUALIZADOS */}
+      {/* ABA 2: FECHAMENTO FINANCEIRO */}
       {activeTab === "financas" && (
         <>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
