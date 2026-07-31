@@ -74,7 +74,9 @@ export default function Partners() {
   // Modal Pagamento Colaborador
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [paymentData, setPaymentData] = useState<any>(null);
-  const [paymentValue, setPaymentValue] = useState("");
+  
+  // NOVO: Valor da hora pré-definido como 20
+  const [hourlyRate, setHourlyRate] = useState("20");
 
   useEffect(() => { 
     fetchData(); 
@@ -222,7 +224,6 @@ export default function Partners() {
       const dataFormatada = new Date(s.data_saida + "T00:00:00").toLocaleDateString('pt-BR');
       const valorFormatado = Number(s.valor_bruto).toFixed(2).replace('.', ',');
       
-      // NOVA LÓGICA: Prepara o nome e telefone do paciente
       const pacNome = s.paciente_nome ? s.paciente_nome.toUpperCase() : 'NÃO INFORMADO';
       const pacTel = s.paciente_telefone ? `<br/><span style="font-size:9px; color:#666;">📞 ${s.paciente_telefone}</span>` : '';
       
@@ -375,12 +376,19 @@ export default function Partners() {
     }
   };
 
-  const calcHoras = (ent: string, sai: string) => {
-    if(!ent || !sai) return '-';
+  // NOVA LÓGICA DE CÁLCULO DE MINUTOS/HORAS REAIS
+  const calcTotalMinutes = (ent: string, sai: string) => {
+    if(!ent || !sai) return 0;
     const [h1, m1] = ent.split(':').map(Number);
     const [h2, m2] = sai.split(':').map(Number);
     let diff = (h2*60 + m2) - (h1*60 + m1);
     if(diff < 0) diff += 24*60;
+    return diff;
+  };
+
+  const calcHoras = (ent: string, sai: string) => {
+    const diff = calcTotalMinutes(ent, sai);
+    if(diff === 0) return '-';
     return `${String(Math.floor(diff/60)).padStart(2,'0')}h${String(diff%60).padStart(2,'0')}m`;
   };
 
@@ -536,21 +544,24 @@ export default function Partners() {
     setTimeout(() => { printWindow.print(); printWindow.close(); }, 250);
   };
 
-  const printColaboradorPdf = async (colaborador: any, monthYear: string, pontos: any[], isPayment: boolean) => {
+  // ==========================================
+  // PDF RH & SINCRONIZAÇÃO FINANCEIRA
+  // ==========================================
+  const printColaboradorPdf = async (colaborador: any, monthYear: string, pontos: any[], isPayment: boolean, calculatedTotal: number = 0) => {
     if (isPayment) {
-      if (!paymentValue || isNaN(Number(paymentValue.replace(',','.')))) {
-        return toast.error("Insira um valor válido para fechar o pagamento.");
+      if (calculatedTotal <= 0) {
+        return toast.error("Não há valor a pagar (verifique as horas batidas ou o valor da hora).");
       }
       try {
         await api.post("/colaboradores/pagamento", { 
           colaborador_nome: colaborador.nome, 
-          valor: Number(paymentValue.replace(',','.')), 
+          valor: calculatedTotal, 
           mes_ref: monthYear 
         });
-        toast.success("Custo de folha de pagamento lançado nos Relatórios!");
+        toast.success("Folha de pagamento lançada nos Relatórios de Custos!");
         setIsPaymentModalOpen(false);
       } catch(e) { 
-        return toast.error("Erro ao lançar custo."); 
+        return toast.error("Erro ao lançar custo no financeiro."); 
       }
     }
 
@@ -588,7 +599,7 @@ export default function Partners() {
           th { background-color: #fafafa; border-top: 1px solid #111; border-bottom: 2px solid #111; padding: 8px; text-align: left; font-size: 10px; text-transform: uppercase; font-weight: bold; }
           td { padding: 9px 8px; border-bottom: 1px dashed #e5e7eb; font-size: 11px; }
           .center { text-align: center; } .right { text-align: right; }
-          .summary-box { width: 280px; float: right; margin-top: 20px; background: #f0fdfa; padding: 12px; border: 1px solid #14b8a6; border-radius: 8px; }
+          .summary-box { width: 300px; float: right; margin-top: 20px; background: #f0fdfa; padding: 12px; border: 1px solid #14b8a6; border-radius: 8px; }
           .summary-total { display: flex; justify-content: space-between; font-weight: 900; font-size: 14px; color: #0f766e; }
           .clear { clear: both; }
         </style>
@@ -630,9 +641,9 @@ export default function Partners() {
           <div class="summary-box">
             <div class="summary-total">
               <span>SALÁRIO LÍQUIDO A PAGAR:</span>
-              <span>R$ ${Number(paymentValue.replace(',','.')).toFixed(2).replace('.', ',')}</span>
+              <span>R$ ${calculatedTotal.toFixed(2).replace('.', ',')}</span>
             </div>
-            <p style="font-size: 9px; color: #666; margin-top: 6px; text-align: center; margin-bottom: 0;">Lançado automaticamente nas despesas operacionais.</p>
+            <p style="font-size: 9px; color: #666; margin-top: 6px; text-align: center; margin-bottom: 0;">Calculado automaticamente com base em horas trabalhadas. Lançado nas despesas operacionais.</p>
           </div>
         ` : ''}
         <div class="clear"></div>
@@ -720,42 +731,65 @@ export default function Partners() {
       )}
 
       {/* ========================================================================= */}
-      {/* MODAL PAGAMENTO COLABORADOR */}
+      {/* MODAL PAGAMENTO COLABORADOR - LÓGICA DE CALCULO AUTOMÁTICO */}
       {/* ========================================================================= */}
-      {isPaymentModalOpen && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-          <div className="bg-neutral-900 border border-neutral-800 p-6 rounded-2xl w-full max-w-sm shadow-2xl relative">
-            <button onClick={() => setIsPaymentModalOpen(false)} className="absolute top-4 right-4 text-neutral-500 hover:text-white">
-              <X className="w-5 h-5"/>
-            </button>
-            <h3 className="text-xl font-black text-white uppercase mb-4 flex items-center gap-2">
-              <DollarSign className="w-5 h-5 text-green-500"/> Pagar Colaborador
-            </h3>
-            <p className="text-xs text-neutral-400 mb-6">
-              Este valor será deduzido como Custo Operacional no painel de Relatórios da Aline.
-            </p>
-            <div className="space-y-4 mb-6">
-              <div className="space-y-2">
-                <Label className="text-xs text-neutral-400 uppercase font-bold">Valor Total a Pagar (R$)</Label>
-                <Input 
-                  type="number" 
-                  step="0.01" 
-                  value={paymentValue} 
-                  onChange={e => setPaymentValue(e.target.value)} 
-                  placeholder="0.00" 
-                  className={inputBaseStyle} 
-                />
+      {isPaymentModalOpen && paymentData && (() => {
+        const totalMin = paymentData.pontos.reduce((acc: number, p: any) => acc + calcTotalMinutes(p.entrada, p.saida), 0);
+        const totalHrs = totalMin / 60;
+        const rate = Number(hourlyRate.replace(',', '.')) || 0;
+        const totalToPay = totalHrs * rate;
+
+        return (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+            <div className="bg-neutral-900 border border-neutral-800 p-6 rounded-2xl w-full max-w-sm shadow-2xl relative">
+              <button onClick={() => setIsPaymentModalOpen(false)} className="absolute top-4 right-4 text-neutral-500 hover:text-white">
+                <X className="w-5 h-5"/>
+              </button>
+              <h3 className="text-xl font-black text-white uppercase mb-4 flex items-center gap-2">
+                <DollarSign className="w-5 h-5 text-green-500"/> Pagar Colaborador
+              </h3>
+              <p className="text-xs text-neutral-400 mb-6">
+                Este valor será calculado automaticamente e deduzido como Custo Operacional nos Relatórios.
+              </p>
+              
+              <div className="space-y-4 mb-6">
+                <div className="bg-neutral-950 p-4 rounded-lg border border-neutral-800">
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs text-neutral-500 font-bold uppercase">Total de Horas do Mês</span>
+                    <span className="text-sm font-black text-white">{Math.floor(totalMin/60)}h {totalMin%60}m</span>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-xs text-neutral-400 uppercase font-bold">Valor da Hora (R$)</Label>
+                  <Input 
+                    type="number" 
+                    step="0.01" 
+                    value={hourlyRate} 
+                    onChange={e => setHourlyRate(e.target.value)} 
+                    placeholder="20.00" 
+                    className={inputBaseStyle} 
+                  />
+                </div>
+
+                <div className="bg-green-500/10 p-4 rounded-lg border border-green-500/20 mt-4">
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs text-green-500 font-bold uppercase">Total a Pagar</span>
+                    <span className="text-xl font-black text-green-400">R$ {totalToPay.toFixed(2).replace('.', ',')}</span>
+                  </div>
+                </div>
               </div>
+
+              <Button 
+                onClick={() => printColaboradorPdf(paymentData.colab, paymentData.month, paymentData.pontos, true, totalToPay)} 
+                className="w-full bg-green-500 hover:bg-green-600 text-black font-black"
+              >
+                Confirmar e Gerar PDF
+              </Button>
             </div>
-            <Button 
-              onClick={() => printColaboradorPdf(paymentData.colab, paymentData.month, paymentData.pontos, true)} 
-              className="w-full bg-green-500 hover:bg-green-600 text-black font-black"
-            >
-              Confirmar e Gerar PDF
-            </Button>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* ========================================================================= */}
       {/* MODAL: NOVO / EDITAR DENTISTA */}
@@ -1317,7 +1351,7 @@ export default function Partners() {
                               <Button 
                                 onClick={(e) => {
                                   e.stopPropagation(); 
-                                  setPaymentValue(''); 
+                                  setHourlyRate("20"); // Reseta para o valor padrão sempre que abrir
                                   setPaymentData({colab: c, month: monthYear, pontos: monthPontos}); 
                                   setIsPaymentModalOpen(true);
                                 }} 
