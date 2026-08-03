@@ -31,11 +31,7 @@ export default function Partners() {
   const [isDentistModalOpen, setIsDentistModalOpen] = useState(false);
   const [editingDentistId, setEditingDentistId] = useState<number | null>(null);
   const [dentistForm, setDentistForm] = useState({ 
-    nome: "", 
-    telefone: "", 
-    cidade: "", 
-    dia: "", 
-    mes: "" 
+    nome: "", telefone: "", cidade: "", dia: "", mes: "" 
   });
 
   // Form states - Motoboys
@@ -44,15 +40,14 @@ export default function Partners() {
 
   const [isRotaModalOpen, setIsRotaModalOpen] = useState(false);
   const [rotaForm, setRotaForm] = useState({ 
-    motoboy_id: "", 
-    data: "", 
-    de_onde: "", 
-    para_onde: "", 
-    valor: "" 
+    motoboy_id: "", data: "", de_onde: "", para_onde: "", valor: "" 
   });
-
   const [isEditRotaModalOpen, setIsEditRotaModalOpen] = useState(false);
   const [editingRotaId, setEditingRotaId] = useState<number | null>(null);
+
+  // Modal Pagamento Motoboy (INJEÇÃO)
+  const [isMotoboyPaymentModalOpen, setIsMotoboyPaymentModalOpen] = useState(false);
+  const [motoboyPaymentData, setMotoboyPaymentData] = useState<any>(null);
 
   // Form states - RH (Colaboradores)
   const [isColabModalOpen, setIsColabModalOpen] = useState(false);
@@ -60,23 +55,21 @@ export default function Partners() {
 
   const [isPontoModalOpen, setIsPontoModalOpen] = useState(false);
   const [pontoForm, setPontoForm] = useState({ 
-    colaborador_id: "", 
-    data: "", 
-    entrada: "", 
-    saida: "" 
+    colaborador_id: "", data: "", entrada: "", saida: "" 
   });
+
+  // Modal Pagamento Colaborador
+  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+  const [paymentData, setPaymentData] = useState<any>(null);
+  const [hourlyRate, setHourlyRate] = useState("20");
+
+  // ESTADO GLOBAL: Caixinha de lançar no financeiro (INJEÇÃO)
+  const [lancarDespesa, setLancarDespesa] = useState(true);
 
   // Modal Custos Extras Dentista
   const [isExtraCostsModalOpen, setIsExtraCostsModalOpen] = useState(false);
   const [extraCosts, setExtraCosts] = useState<{descricao: string, valor: string}[]>([]);
   const [pdfDentistData, setPdfDentistData] = useState<any>(null);
-
-  // Modal Pagamento Colaborador
-  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
-  const [paymentData, setPaymentData] = useState<any>(null);
-  
-  // NOVO: Valor da hora pré-definido como 20
-  const [hourlyRate, setHourlyRate] = useState("20");
 
   useEffect(() => { 
     fetchData(); 
@@ -165,9 +158,7 @@ export default function Partners() {
       await api.delete(`/dentistas/${id}`);
       toast.success("Dentista eliminado.");
       fetchData();
-    } catch (e) { 
-      toast.error("Erro ao eliminar."); 
-    }
+    } catch (e) { toast.error("Erro ao eliminar."); }
   };
 
   const handleDeleteService = async (id: number) => {
@@ -176,34 +167,7 @@ export default function Partners() {
       await api.delete(`/trabalhos/${id}`);
       toast.success("Serviço removido.");
       fetchData();
-    } catch (e) { 
-      toast.error("Erro ao remover serviço."); 
-    }
-  };
-
-  // ==========================================
-  // NOVAS FUNÇÕES: EXCLUIR COLABORADOR E MOTOBOY
-  // ==========================================
-  const handleDeleteColaborador = async (id: number) => {
-    if (!confirm("Tem a certeza que deseja excluir este colaborador? Todo o histórico de ponto será apagado.")) return;
-    try {
-      await api.delete(`/colaboradores/${id}`);
-      toast.success("Colaborador excluído com sucesso!");
-      fetchData();
-    } catch (e) { 
-      toast.error("Erro ao excluir colaborador."); 
-    }
-  };
-
-  const handleDeleteMotoboy = async (id: number) => {
-    if (!confirm("Tem a certeza que deseja excluir este motoboy? Todo o histórico de corridas será apagado.")) return;
-    try {
-      await api.delete(`/motoboys/${id}`);
-      toast.success("Motoboy excluído com sucesso!");
-      fetchData();
-    } catch (e) { 
-      toast.error("Erro ao excluir motoboy."); 
-    }
+    } catch (e) { toast.error("Erro ao remover serviço."); }
   };
 
   const openDentistPdfModal = (dentist: any, monthYear: string, monthServices: any[]) => {
@@ -223,7 +187,6 @@ export default function Partners() {
     monthServices.forEach((s: any, idx: number) => {
       const dataFormatada = new Date(s.data_saida + "T00:00:00").toLocaleDateString('pt-BR');
       const valorFormatado = Number(s.valor_bruto).toFixed(2).replace('.', ',');
-      
       const pacNome = s.paciente_nome ? s.paciente_nome.toUpperCase() : 'NÃO INFORMADO';
       const pacTel = s.paciente_telefone ? `<br/><span style="font-size:9px; color:#666;">📞 ${s.paciente_telefone}</span>` : '';
       
@@ -244,7 +207,6 @@ export default function Partners() {
       const v = Number(extra.valor.replace(',', '.'));
       totalMes += v;
       const valorExtraFormatado = v.toFixed(2).replace('.', ',');
-      
       rowsHtml += `
         <tr>
           <td class="center" style="color: #DEAE60;">•</td>
@@ -267,19 +229,17 @@ export default function Partners() {
           body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #333; font-size: 11px; line-height: 1.5; padding: 10px; }
           .header { border-bottom: 2px solid #DEAE60; padding-bottom: 12px; margin-bottom: 25px; display: flex; justify-content: space-between; align-items: center; }
           .header h1 { font-size: 18px; margin: 0; font-weight: 900; text-transform: uppercase; letter-spacing: -0.5px; color: #fff; }
-          .header p { margin: 2px 0 0 0; font-size: 11px; color: #a3a3a3; text-transform: uppercase; tracking-widest: 1px; }
+          .header p { margin: 2px 0 0 0; font-size: 11px; color: #a3a3a3; text-transform: uppercase; }
           .logo-area { background: #171717; padding: 15px 20px; border-radius: 10px; display: flex; align-items: center; gap: 15px; }
           .info { margin-bottom: 25px; background: #fafafa; padding: 15px; border: 1px solid #e5e5e7; border-radius: 12px; }
           .info p { margin: 4px 0; font-size: 12px; color: #1f1f23; }
           table { width: 100%; border-collapse: collapse; margin-top: 10px; }
           th { background-color: #fafafa; border-top: 1px solid #111; border-bottom: 2px solid #111; padding: 8px; text-align: left; font-size: 10px; text-transform: uppercase; font-weight: bold; color: #555; }
           td { padding: 9px 8px; border-bottom: 1px dashed #e5e5e7; font-size: 11px; }
-          tr:hover { background-color: #fcfcfc; }
           .center { text-align: center; } .right { text-align: right; }
           .summary-box { width: 260px; float: right; margin-top: 20px; background: #fff; border-radius: 8px; }
           .summary-total { display: flex; justify-content: space-between; font-weight: 900; font-size: 15px; border-top: 2px solid #111; padding-top: 8px; color: #000; }
           .clear { clear: both; }
-          .footer { text-align: center; margin-top: 50px; font-size: 10px; color: #888; border-top: 1px solid #e5e7eb; padding-top: 12px; }
         </style>
       </head>
       <body>
@@ -293,12 +253,10 @@ export default function Partners() {
           </div>
           <div style="text-align: right; font-size: 10px; color: #666; font-weight: bold;">EMISSÃO: ${new Date().toLocaleDateString('pt-BR')}</div>
         </div>
-        
         <div class="info">
           <p><strong>DENTISTA PARCEIRO:</strong> ${dentist.nome.toUpperCase()}</p>
           <p><strong>PERÍODO DE FECHAMENTO:</strong> Mês ${monthYear}</p>
         </div>
-
         <table>
           <thead>
             <tr>
@@ -310,11 +268,8 @@ export default function Partners() {
               <th class="right" style="width: 15%;">Valor</th>
             </tr>
           </thead>
-          <tbody>
-            ${rowsHtml}
-          </tbody>
+          <tbody>${rowsHtml}</tbody>
         </table>
-
         <div class="summary-box">
           <div class="summary-total">
             <span>TOTAL DO FECHAMENTO:</span>
@@ -322,10 +277,6 @@ export default function Partners() {
           </div>
         </div>
         <div class="clear"></div>
-
-        <div class="footer">
-          <p>Relatório emitido eletronicamente • Sistema de Gestão Aline Antunes Prótese Odontológica</p>
-        </div>
       </body>
       </html>
     `;
@@ -339,6 +290,15 @@ export default function Partners() {
   // ==========================================
   // COLABORADORES (RH & Ponto)
   // ==========================================
+  const handleDeleteColaborador = async (id: number) => {
+    if (!confirm("Tem a certeza que deseja excluir este colaborador? Todo o histórico de ponto será apagado.")) return;
+    try {
+      await api.delete(`/colaboradores/${id}`);
+      toast.success("Colaborador excluído com sucesso!");
+      fetchData();
+    } catch (e) { toast.error("Erro ao excluir colaborador."); }
+  };
+
   const handleColab = async (e: React.FormEvent) => {
     e.preventDefault();
     try { 
@@ -347,9 +307,7 @@ export default function Partners() {
       setIsColabModalOpen(false); 
       setColabForm({nome:'', telefone:'', cargo:''}); 
       fetchData(); 
-    } catch(e) { 
-      toast.error("Erro ao guardar colaborador."); 
-    }
+    } catch(e) { toast.error("Erro ao guardar colaborador."); }
   };
 
   const handlePonto = async (e: React.FormEvent) => {
@@ -360,9 +318,7 @@ export default function Partners() {
       setIsPontoModalOpen(false); 
       setPontoForm({...pontoForm, data:'', entrada:'', saida:''}); 
       fetchData(); 
-    } catch(e) { 
-      toast.error("Erro ao registar o ponto."); 
-    }
+    } catch(e) { toast.error("Erro ao registar o ponto."); }
   };
 
   const handleDeletePonto = async (id: number) => {
@@ -371,12 +327,9 @@ export default function Partners() {
       await api.delete(`/colaboradores/pontos/${id}`); 
       toast.success("Ponto eliminado"); 
       fetchData(); 
-    } catch(e) { 
-      toast.error("Erro ao eliminar o ponto."); 
-    }
+    } catch(e) { toast.error("Erro ao eliminar o ponto."); }
   };
 
-  // NOVA LÓGICA DE CÁLCULO DE MINUTOS/HORAS REAIS
   const calcTotalMinutes = (ent: string, sai: string) => {
     if(!ent || !sai) return 0;
     const [h1, m1] = ent.split(':').map(Number);
@@ -392,6 +345,112 @@ export default function Partners() {
     return `${String(Math.floor(diff/60)).padStart(2,'0')}h${String(diff%60).padStart(2,'0')}m`;
   };
 
+  // IMPRESSÃO E PAGAMENTO RH COM CAIXINHA
+  const printColaboradorPdf = async (colaborador: any, monthYear: string, pontos: any[], isPayment: boolean, calculatedTotal: number = 0) => {
+    if (isPayment) {
+      if (calculatedTotal <= 0) {
+        return toast.error("Não há valor a pagar (verifique as horas batidas ou o valor da hora).");
+      }
+      
+      // CHECA SE A CAIXINHA ESTAVA MARCADA E ENVIA PARA A API
+      if (lancarDespesa) {
+        try {
+          await api.post("/colaboradores/pagamento", { 
+            colaborador_nome: colaborador.nome, 
+            valor: calculatedTotal, 
+            mes_ref: monthYear 
+          });
+          toast.success("Folha de pagamento lançada nos Relatórios de Custos!");
+        } catch(e) { 
+          toast.error("Erro ao lançar custo no financeiro."); 
+        }
+      }
+      setIsPaymentModalOpen(false);
+    }
+
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return toast.error("Permita pop-ups no navegador.");
+
+    let rowsHtml = '';
+    pontos.forEach((p: any, idx: number) => {
+      rowsHtml += `
+        <tr>
+          <td class="center" style="color: #666;">${String(idx + 1).padStart(2, '0')}</td>
+          <td>${new Date(p.data + "T00:00:00").toLocaleDateString('pt-BR')}</td>
+          <td class="center" style="font-weight: bold;">${p.entrada || '-'}</td>
+          <td class="center" style="font-weight: bold;">${p.saida || '-'}</td>
+          <td class="center" style="color: #555;">${calcHoras(p.entrada, p.saida)}</td>
+        </tr>
+      `;
+    });
+
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Relatório_Ponto_${colaborador.nome}_${monthYear.replace('/', '-')}</title>
+        <style>
+          @page { margin: 15mm; size: A4 portrait; }
+          body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #333; font-size: 11px; line-height: 1.5; padding: 10px; }
+          .header { border-bottom: 2px solid #DEAE60; padding-bottom: 12px; margin-bottom: 25px; display: flex; justify-content: space-between; align-items: center; }
+          .header h1 { font-size: 18px; margin: 0; font-weight: 900; text-transform: uppercase; color: #fff; }
+          .logo-area { background: #171717; padding: 15px 20px; border-radius: 10px; display: flex; align-items: center; gap: 15px; }
+          .info { margin-bottom: 25px; background: #fafafa; padding: 15px; border: 1px solid #e5e7eb; border-radius: 12px; }
+          table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+          th { background-color: #fafafa; border-top: 1px solid #111; border-bottom: 2px solid #111; padding: 8px; text-align: left; font-size: 10px; text-transform: uppercase; font-weight: bold; }
+          td { padding: 9px 8px; border-bottom: 1px dashed #e5e7eb; font-size: 11px; }
+          .center { text-align: center; }
+          .summary-box { width: 300px; float: right; margin-top: 20px; background: #f0fdfa; padding: 12px; border: 1px solid #14b8a6; border-radius: 8px; }
+          .summary-total { display: flex; justify-content: space-between; font-weight: 900; font-size: 14px; color: #0f766e; }
+          .clear { clear: both; }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <div class="logo-area">
+            <img src="/logoaline.png" style="width: 45px; height: 44px;" />
+            <div>
+              <h1>ALINE ANTUNES</h1>
+              <p style="margin: 2px 0 0 0; font-size: 11px; color: #a3a3a3; text-transform: uppercase;">Recursos Humanos (RH)</p>
+            </div>
+          </div>
+          <div style="text-align: right; font-size: 10px; color: #666;">FECHAMENTO: ${new Date().toLocaleDateString('pt-BR')}</div>
+        </div>
+        <div class="info">
+          <p style="margin: 4px 0; font-size: 12px;"><strong>COLABORADOR:</strong> ${colaborador.nome.toUpperCase()}</p>
+          <p style="margin: 4px 0; font-size: 12px;"><strong>CARGO/FUNÇÃO:</strong> ${colaborador.cargo || 'Não especificado'}</p>
+          <p style="margin: 4px 0; font-size: 12px;"><strong>PERÍODO DE APURAÇÃO:</strong> Mês ${monthYear}</p>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th class="center" style="width: 5%;">#</th>
+              <th style="width: 25%;">Data do Expediente</th>
+              <th class="center" style="width: 20%;">Horário Entrada</th>
+              <th class="center" style="width: 20%;">Horário Saída</th>
+              <th class="center" style="width: 30%;">Total de Horas do Dia</th>
+            </tr>
+          </thead>
+          <tbody>${rowsHtml}</tbody>
+        </table>
+        ${isPayment ? `
+          <div class="summary-box">
+            <div class="summary-total">
+              <span>SALÁRIO LÍQUIDO A PAGAR:</span>
+              <span>R$ ${calculatedTotal.toFixed(2).replace('.', ',')}</span>
+            </div>
+          </div>
+        ` : ''}
+        <div class="clear"></div>
+      </body>
+      </html>
+    `;
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => { printWindow.print(); printWindow.close(); }, 250);
+  };
+
   // ==========================================
   // FUNÇÕES DE MOTOBOYS E ROTAS
   // ==========================================
@@ -403,9 +462,16 @@ export default function Partners() {
       setIsMotoboyModalOpen(false);
       setMotoboyForm({ nome: "", telefone: "" });
       fetchData();
-    } catch (e) {
-      toast.error("Erro ao salvar motoboy.");
-    }
+    } catch (e) { toast.error("Erro ao salvar motoboy."); }
+  };
+
+  const handleDeleteMotoboy = async (id: number) => {
+    if (!confirm("Tem a certeza que deseja excluir este motoboy? Todo o histórico de corridas será apagado.")) return;
+    try {
+      await api.delete(`/motoboys/${id}`);
+      toast.success("Motoboy excluído com sucesso!");
+      fetchData();
+    } catch (e) { toast.error("Erro ao excluir motoboy."); }
   };
 
   const handleSaveRota = async (e: React.FormEvent) => {
@@ -419,9 +485,7 @@ export default function Partners() {
       setIsRotaModalOpen(false);
       setRotaForm({ motoboy_id: "", data: "", de_onde: "", para_onde: "", valor: "" });
       fetchData();
-    } catch (e) {
-      toast.error("Erro ao salvar rota.");
-    }
+    } catch (e) { toast.error("Erro ao salvar rota."); }
   };
 
   const handleDeleteRota = async (id: number) => {
@@ -430,9 +494,7 @@ export default function Partners() {
       await api.delete(`/motoboys/rotas/${id}`);
       toast.success("Rota excluída com sucesso!");
       fetchData();
-    } catch (e) {
-      toast.error("Erro ao excluir rota.");
-    }
+    } catch (e) { toast.error("Erro ao excluir rota."); }
   };
 
   const openEditRotaModal = (rota: any) => {
@@ -459,12 +521,26 @@ export default function Partners() {
       setEditingRotaId(null);
       setRotaForm({ motoboy_id: "", data: "", de_onde: "", para_onde: "", valor: "" });
       fetchData();
-    } catch (e) {
-      toast.error("Erro ao atualizar rota.");
-    }
+    } catch (e) { toast.error("Erro ao atualizar rota."); }
   };
 
-  const printMotoboyReport = (motoboy: any, monthYear: string, rotas: any[]) => {
+  // IMPRESSÃO E PAGAMENTO MOTOBOY COM CAIXINHA
+  const printMotoboyReport = async (motoboy: any, monthYear: string, rotas: any[], isPayment: boolean = false, totalValue: number = 0) => {
+    
+    if (isPayment && lancarDespesa) {
+      try {
+        await api.post("/motoboys/pagamento", {
+          motoboy_nome: motoboy.nome,
+          valor: totalValue,
+          mes_ref: monthYear
+        });
+        toast.success("Custo de motoboy lançado nos Relatórios de Custos!");
+      } catch (e) {
+        toast.error("Erro ao lançar custo no financeiro.");
+      }
+    }
+    setIsMotoboyPaymentModalOpen(false);
+
     const printWindow = window.open('', '_blank');
     if (!printWindow) return toast.error("Permita pop-ups no navegador.");
 
@@ -538,119 +614,6 @@ export default function Partners() {
       </body>
       </html>
     `;
-    printWindow.document.write(htmlContent);
-    printWindow.document.close();
-    printWindow.focus();
-    setTimeout(() => { printWindow.print(); printWindow.close(); }, 250);
-  };
-
-  // ==========================================
-  // PDF RH & SINCRONIZAÇÃO FINANCEIRA
-  // ==========================================
-  const printColaboradorPdf = async (colaborador: any, monthYear: string, pontos: any[], isPayment: boolean, calculatedTotal: number = 0) => {
-    if (isPayment) {
-      if (calculatedTotal <= 0) {
-        return toast.error("Não há valor a pagar (verifique as horas batidas ou o valor da hora).");
-      }
-      try {
-        await api.post("/colaboradores/pagamento", { 
-          colaborador_nome: colaborador.nome, 
-          valor: calculatedTotal, 
-          mes_ref: monthYear 
-        });
-        toast.success("Folha de pagamento lançada nos Relatórios de Custos!");
-        setIsPaymentModalOpen(false);
-      } catch(e) { 
-        return toast.error("Erro ao lançar custo no financeiro."); 
-      }
-    }
-
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) return toast.error("Permita pop-ups no navegador.");
-
-    let rowsHtml = '';
-    pontos.forEach((p: any, idx: number) => {
-      rowsHtml += `
-        <tr>
-          <td class="center" style="color: #666;">${String(idx + 1).padStart(2, '0')}</td>
-          <td>${new Date(p.data + "T00:00:00").toLocaleDateString('pt-BR')}</td>
-          <td class="center" style="font-weight: bold;">${p.entrada || '-'}</td>
-          <td class="center" style="font-weight: bold;">${p.saida || '-'}</td>
-          <td class="center" style="color: #555;">${calcHoras(p.entrada, p.saida)}</td>
-        </tr>
-      `;
-    });
-
-    const htmlContent = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>Relatório_Ponto_${colaborador.nome}_${monthYear.replace('/', '-')}</title>
-        <style>
-          @page { margin: 15mm; size: A4 portrait; }
-          body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #333; font-size: 11px; line-height: 1.5; padding: 10px; }
-          .header { border-bottom: 2px solid #DEAE60; padding-bottom: 12px; margin-bottom: 25px; display: flex; justify-content: space-between; align-items: center; }
-          .header h1 { font-size: 18px; margin: 0; font-weight: 900; text-transform: uppercase; letter-spacing: -0.5px; color: #fff; }
-          .header p { margin: 2px 0 0 0; font-size: 11px; color: #a3a3a3; text-transform: uppercase; }
-          .logo-area { background: #171717; padding: 15px 20px; border-radius: 10px; display: flex; align-items: center; gap: 15px; }
-          .info { margin-bottom: 25px; background: #fafafa; padding: 15px; border: 1px solid #e5e7eb; border-radius: 12px; }
-          .info p { margin: 4px 0; font-size: 12px; }
-          table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-          th { background-color: #fafafa; border-top: 1px solid #111; border-bottom: 2px solid #111; padding: 8px; text-align: left; font-size: 10px; text-transform: uppercase; font-weight: bold; }
-          td { padding: 9px 8px; border-bottom: 1px dashed #e5e7eb; font-size: 11px; }
-          .center { text-align: center; } .right { text-align: right; }
-          .summary-box { width: 300px; float: right; margin-top: 20px; background: #f0fdfa; padding: 12px; border: 1px solid #14b8a6; border-radius: 8px; }
-          .summary-total { display: flex; justify-content: space-between; font-weight: 900; font-size: 14px; color: #0f766e; }
-          .clear { clear: both; }
-        </style>
-      </head>
-      <body>
-        <div class="header">
-          <div class="logo-area">
-            <img src="/logoaline.png" style="width: 45px; height: 44px;" />
-            <div>
-              <h1>ALINE ANTUNES</h1>
-              <p>Recursos Humanos (RH)</p>
-            </div>
-          </div>
-          <div style="text-align: right; font-size: 10px; color: #666;">FECHAMENTO: ${new Date().toLocaleDateString('pt-BR')}</div>
-        </div>
-        
-        <div class="info">
-          <p><strong>COLABORADOR:</strong> ${colaborador.nome.toUpperCase()}</p>
-          <p><strong>CARGO/FUNÇÃO:</strong> ${colaborador.cargo || 'Não especificado'}</p>
-          <p><strong>PERÍODO DE APURAÇÃO:</strong> Mês ${monthYear}</p>
-        </div>
-
-        <table>
-          <thead>
-            <tr>
-              <th class="center" style="width: 5%;">#</th>
-              <th style="width: 25%;">Data do Expediente</th>
-              <th class="center" style="width: 20%;">Horário Entrada</th>
-              <th class="center" style="width: 20%;">Horário Saída</th>
-              <th class="center" style="width: 30%;">Total de Horas do Dia</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${rowsHtml}
-          </tbody>
-        </table>
-
-        ${isPayment ? `
-          <div class="summary-box">
-            <div class="summary-total">
-              <span>SALÁRIO LÍQUIDO A PAGAR:</span>
-              <span>R$ ${calculatedTotal.toFixed(2).replace('.', ',')}</span>
-            </div>
-            <p style="font-size: 9px; color: #666; margin-top: 6px; text-align: center; margin-bottom: 0;">Calculado automaticamente com base em horas trabalhadas. Lançado nas despesas operacionais.</p>
-          </div>
-        ` : ''}
-        <div class="clear"></div>
-      </body>
-      </html>
-    `;
-    
     printWindow.document.write(htmlContent);
     printWindow.document.close();
     printWindow.focus();
@@ -731,7 +694,7 @@ export default function Partners() {
       )}
 
       {/* ========================================================================= */}
-      {/* MODAL PAGAMENTO COLABORADOR - LÓGICA DE CALCULO AUTOMÁTICO */}
+      {/* MODAL PAGAMENTO COLABORADOR */}
       {/* ========================================================================= */}
       {isPaymentModalOpen && paymentData && (() => {
         const totalMin = paymentData.pontos.reduce((acc: number, p: any) => acc + calcTotalMinutes(p.entrada, p.saida), 0);
@@ -749,27 +712,20 @@ export default function Partners() {
                 <DollarSign className="w-5 h-5 text-green-500"/> Pagar Colaborador
               </h3>
               <p className="text-xs text-neutral-400 mb-6">
-                Este valor será calculado automaticamente e deduzido como Custo Operacional nos Relatórios.
+                Fechamento de ponto de <strong>{paymentData.colab.nome}</strong>.
               </p>
               
               <div className="space-y-4 mb-6">
                 <div className="bg-neutral-950 p-4 rounded-lg border border-neutral-800">
                   <div className="flex justify-between items-center">
-                    <span className="text-xs text-neutral-500 font-bold uppercase">Total de Horas do Mês</span>
+                    <span className="text-xs text-neutral-500 font-bold uppercase">Horas do Mês</span>
                     <span className="text-sm font-black text-white">{Math.floor(totalMin/60)}h {totalMin%60}m</span>
                   </div>
                 </div>
 
                 <div className="space-y-2">
                   <Label className="text-xs text-neutral-400 uppercase font-bold">Valor da Hora (R$)</Label>
-                  <Input 
-                    type="number" 
-                    step="0.01" 
-                    value={hourlyRate} 
-                    onChange={e => setHourlyRate(e.target.value)} 
-                    placeholder="20.00" 
-                    className={inputBaseStyle} 
-                  />
+                  <Input type="number" step="0.01" value={hourlyRate} onChange={e => setHourlyRate(e.target.value)} placeholder="20.00" className={inputBaseStyle} />
                 </div>
 
                 <div className="bg-green-500/10 p-4 rounded-lg border border-green-500/20 mt-4">
@@ -778,13 +734,75 @@ export default function Partners() {
                     <span className="text-xl font-black text-green-400">R$ {totalToPay.toFixed(2).replace('.', ',')}</span>
                   </div>
                 </div>
+
+                {/* CHECKBOX DA DESPESA OPERACIONAL */}
+                <div className="flex items-center gap-3 p-3 bg-neutral-950/50 border border-neutral-800 rounded-lg mt-4 cursor-pointer hover:bg-neutral-900/50 transition-colors" onClick={() => setLancarDespesa(!lancarDespesa)}>
+                  <input type="checkbox" checked={lancarDespesa} onChange={(e) => setLancarDespesa(e.target.checked)} className="w-5 h-5 rounded border-neutral-700 bg-neutral-900 text-green-500 focus:ring-green-500 cursor-pointer" />
+                  <div>
+                    <Label className="text-xs font-bold text-white uppercase cursor-pointer">Lançar no Relatório Financeiro</Label>
+                    <p className="text-[10px] text-neutral-500 mt-0.5">Desconta esse valor dos lucros da clínica.</p>
+                  </div>
+                </div>
+
+              </div>
+
+              <Button onClick={() => printColaboradorPdf(paymentData.colab, paymentData.month, paymentData.pontos, true, totalToPay)} className="w-full bg-green-500 hover:bg-green-600 text-black font-black">
+                Confirmar e Gerar PDF
+              </Button>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* ========================================================================= */}
+      {/* MODAL PAGAMENTO MOTOBOY */}
+      {/* ========================================================================= */}
+      {isMotoboyPaymentModalOpen && motoboyPaymentData && (() => {
+        const totalToPay = motoboyPaymentData.rotas.reduce((acc: number, curr: any) => acc + Number(curr.valor), 0);
+
+        return (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+            <div className="bg-neutral-900 border border-neutral-800 p-6 rounded-2xl w-full max-w-sm shadow-2xl relative">
+              <button onClick={() => setIsMotoboyPaymentModalOpen(false)} className="absolute top-4 right-4 text-neutral-500 hover:text-white">
+                <X className="w-5 h-5"/>
+              </button>
+              <h3 className="text-xl font-black text-white uppercase mb-4 flex items-center gap-2">
+                <Bike className="w-5 h-5 text-[#DEAE60]"/> Fechar Acerto
+              </h3>
+              <p className="text-xs text-neutral-400 mb-6">
+                Fechamento das corridas de <strong>{motoboyPaymentData.motoboy.nome}</strong> referente a {motoboyPaymentData.month}.
+              </p>
+              
+              <div className="space-y-4 mb-6">
+                <div className="bg-neutral-950 p-4 rounded-lg border border-neutral-800">
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs text-neutral-500 font-bold uppercase">Corridas Efetuadas</span>
+                    <span className="text-sm font-black text-white">{motoboyPaymentData.rotas.length} rotas</span>
+                  </div>
+                </div>
+
+                <div className="bg-[#DEAE60]/10 p-4 rounded-lg border border-[#DEAE60]/20 mt-4">
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs text-[#DEAE60] font-bold uppercase">Total a Pagar</span>
+                    <span className="text-xl font-black text-[#DEAE60]">R$ {totalToPay.toFixed(2).replace('.', ',')}</span>
+                  </div>
+                </div>
+
+                {/* CHECKBOX DA DESPESA OPERACIONAL */}
+                <div className="flex items-center gap-3 p-3 bg-neutral-950/50 border border-neutral-800 rounded-lg mt-4 cursor-pointer hover:bg-neutral-900/50 transition-colors" onClick={() => setLancarDespesa(!lancarDespesa)}>
+                  <input type="checkbox" checked={lancarDespesa} onChange={(e) => setLancarDespesa(e.target.checked)} className="w-5 h-5 rounded border-neutral-700 bg-neutral-900 text-[#DEAE60] focus:ring-[#DEAE60] cursor-pointer" />
+                  <div>
+                    <Label className="text-xs font-bold text-white uppercase cursor-pointer">Lançar no Relatório Financeiro</Label>
+                    <p className="text-[10px] text-neutral-500 mt-0.5">Desconta esse valor dos lucros da clínica.</p>
+                  </div>
+                </div>
               </div>
 
               <Button 
-                onClick={() => printColaboradorPdf(paymentData.colab, paymentData.month, paymentData.pontos, true, totalToPay)} 
-                className="w-full bg-green-500 hover:bg-green-600 text-black font-black"
+                onClick={() => printMotoboyReport(motoboyPaymentData.motoboy, motoboyPaymentData.month, motoboyPaymentData.rotas, true, totalToPay)} 
+                className="w-full bg-[#DEAE60] hover:bg-[#DEAE60]/90 text-black font-black"
               >
-                Confirmar e Gerar PDF
+                Confirmar e Imprimir Acerto
               </Button>
             </div>
           </div>
@@ -797,77 +815,23 @@ export default function Partners() {
       {isDentistModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
           <div className="bg-neutral-900 border border-neutral-800 p-6 rounded-2xl w-full max-w-md relative">
-            <button 
-              onClick={() => { setIsDentistModalOpen(false); setEditingDentistId(null); }} 
-              className="absolute top-4 right-4 text-neutral-500"
-            >
-              <X className="w-5 h-5"/>
-            </button>
-            <h3 className="text-xl font-black text-white uppercase mb-6 flex items-center gap-2">
-              <Users className="w-5 h-5 text-[#DEAE60]" /> 
-              {editingDentistId ? "Editar Parceiro" : "Novo Parceiro"}
-            </h3>
-            
+            <button onClick={() => { setIsDentistModalOpen(false); setEditingDentistId(null); }} className="absolute top-4 right-4 text-neutral-500"><X className="w-5 h-5"/></button>
+            <h3 className="text-xl font-black text-white uppercase mb-6 flex items-center gap-2"><Users className="w-5 h-5 text-[#DEAE60]" /> {editingDentistId ? "Editar Parceiro" : "Novo Parceiro"}</h3>
             <form onSubmit={handleSaveDentist} className="space-y-4">
-              <div className="space-y-2">
-                <Label className="text-xs font-bold text-neutral-400 uppercase">Nome Completo *</Label>
-                <Input 
-                  required 
-                  value={dentistForm.nome} 
-                  onChange={e => setDentistForm({...dentistForm, nome: e.target.value})} 
-                  className={inputBaseStyle} 
-                  placeholder="Nome" 
-                />
-              </div>
-              <div className="space-y-2">
-                <Label className="text-xs font-bold text-neutral-400 uppercase">Telefone</Label>
-                <Input 
-                  value={dentistForm.telefone} 
-                  onChange={e => setDentistForm({...dentistForm, telefone: e.target.value})} 
-                  className={inputBaseStyle} 
-                  placeholder="Telefone" 
-                />
-              </div>
-              <div className="space-y-2">
-                <Label className="text-xs font-bold text-neutral-400 uppercase">Cidade</Label>
-                <Input 
-                  value={dentistForm.cidade} 
-                  onChange={e => setDentistForm({...dentistForm, cidade: e.target.value})} 
-                  className={inputBaseStyle} 
-                  placeholder="Cidade" 
-                />
-              </div>
+              <div className="space-y-2"><Label className="text-xs font-bold text-neutral-400 uppercase">Nome Completo *</Label><Input required value={dentistForm.nome} onChange={e => setDentistForm({...dentistForm, nome: e.target.value})} className={inputBaseStyle} /></div>
+              <div className="space-y-2"><Label className="text-xs font-bold text-neutral-400 uppercase">Telefone</Label><Input value={dentistForm.telefone} onChange={e => setDentistForm({...dentistForm, telefone: e.target.value})} className={inputBaseStyle} /></div>
+              <div className="space-y-2"><Label className="text-xs font-bold text-neutral-400 uppercase">Cidade</Label><Input value={dentistForm.cidade} onChange={e => setDentistForm({...dentistForm, cidade: e.target.value})} className={inputBaseStyle} /></div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label className="text-xs font-bold text-neutral-400 uppercase">Dia Nasc.</Label>
-                  <Select value={dentistForm.dia} onValueChange={v => setDentistForm({...dentistForm, dia: v})}>
-                    <SelectTrigger className={inputBaseStyle}>
-                      <SelectValue placeholder="Dia"/>
-                    </SelectTrigger>
-                    <SelectContent className="bg-neutral-900 border-neutral-800 text-white h-48">
-                      {Array.from({length:31},(_,i)=>i+1).map(d=>(
-                        <SelectItem key={d} value={d.toString()}>{d}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Select value={dentistForm.dia} onValueChange={v => setDentistForm({...dentistForm, dia: v})}><SelectTrigger className={inputBaseStyle}><SelectValue placeholder="Dia"/></SelectTrigger><SelectContent className="bg-neutral-900 border-neutral-800 text-white h-48">{Array.from({length:31},(_,i)=>i+1).map(d=>(<SelectItem key={d} value={d.toString()}>{d}</SelectItem>))}</SelectContent></Select>
                 </div>
                 <div className="space-y-2">
                   <Label className="text-xs font-bold text-neutral-400 uppercase">Mês Nasc.</Label>
-                  <Select value={dentistForm.mes} onValueChange={v => setDentistForm({...dentistForm, mes: v})}>
-                    <SelectTrigger className={inputBaseStyle}>
-                      <SelectValue placeholder="Mês"/>
-                    </SelectTrigger>
-                    <SelectContent className="bg-neutral-900 border-neutral-800 text-white">
-                      {["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"].map((m,i)=>(
-                        <SelectItem key={i+1} value={(i+1).toString()}>{m}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Select value={dentistForm.mes} onValueChange={v => setDentistForm({...dentistForm, mes: v})}><SelectTrigger className={inputBaseStyle}><SelectValue placeholder="Mês"/></SelectTrigger><SelectContent className="bg-neutral-900 border-neutral-800 text-white">{["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"].map((m,i)=>(<SelectItem key={i+1} value={(i+1).toString()}>{m}</SelectItem>))}</SelectContent></Select>
                 </div>
               </div>
-              <Button type="submit" className="w-full bg-[#DEAE60] hover:bg-[#DEAE60]/90 text-black font-black mt-4">
-                Salvar Parceiro
-              </Button>
+              <Button type="submit" className="w-full bg-[#DEAE60] hover:bg-[#DEAE60]/90 text-black font-black mt-4">Salvar Parceiro</Button>
             </form>
           </div>
         </div>
@@ -879,29 +843,13 @@ export default function Partners() {
       {isColabModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
           <div className="bg-neutral-900 border border-neutral-800 p-6 rounded-2xl w-full max-w-md relative">
-            <button onClick={() => setIsColabModalOpen(false)} className="absolute top-4 right-4 text-neutral-500">
-              <X className="w-5 h-5"/>
-            </button>
-            <h3 className="text-xl font-black text-white uppercase mb-6 flex items-center gap-2">
-              <UserCheck className="w-5 h-5 text-[#DEAE60]"/> Novo Colaborador
-            </h3>
-            
+            <button onClick={() => setIsColabModalOpen(false)} className="absolute top-4 right-4 text-neutral-500"><X className="w-5 h-5"/></button>
+            <h3 className="text-xl font-black text-white uppercase mb-6 flex items-center gap-2"><UserCheck className="w-5 h-5 text-[#DEAE60]"/> Novo Colaborador</h3>
             <form onSubmit={handleColab} className="space-y-4">
-              <div className="space-y-2">
-                <Label className="text-xs font-bold text-neutral-400 uppercase">Nome *</Label>
-                <Input required value={colabForm.nome} onChange={e => setColabForm({...colabForm, nome: e.target.value})} className={inputBaseStyle} placeholder="Nome" />
-              </div>
-              <div className="space-y-2">
-                <Label className="text-xs font-bold text-neutral-400 uppercase">Telefone</Label>
-                <Input value={colabForm.telefone} onChange={e => setColabForm({...colabForm, telefone: e.target.value})} className={inputBaseStyle} placeholder="Telefone" />
-              </div>
-              <div className="space-y-2">
-                <Label className="text-xs font-bold text-neutral-400 uppercase">Cargo / Função</Label>
-                <Input value={colabForm.cargo} onChange={e => setColabForm({...colabForm, cargo: e.target.value})} className={inputBaseStyle} placeholder="Cargo/Função" />
-              </div>
-              <Button type="submit" className="w-full bg-[#DEAE60] hover:bg-[#DEAE60]/90 text-black font-black mt-4">
-                Salvar Colaborador
-              </Button>
+              <div className="space-y-2"><Label className="text-xs font-bold text-neutral-400 uppercase">Nome *</Label><Input required value={colabForm.nome} onChange={e => setColabForm({...colabForm, nome: e.target.value})} className={inputBaseStyle} /></div>
+              <div className="space-y-2"><Label className="text-xs font-bold text-neutral-400 uppercase">Telefone</Label><Input value={colabForm.telefone} onChange={e => setColabForm({...colabForm, telefone: e.target.value})} className={inputBaseStyle} /></div>
+              <div className="space-y-2"><Label className="text-xs font-bold text-neutral-400 uppercase">Cargo / Função</Label><Input value={colabForm.cargo} onChange={e => setColabForm({...colabForm, cargo: e.target.value})} className={inputBaseStyle} /></div>
+              <Button type="submit" className="w-full bg-[#DEAE60] hover:bg-[#DEAE60]/90 text-black font-black mt-4">Salvar Colaborador</Button>
             </form>
           </div>
         </div>
@@ -913,122 +861,67 @@ export default function Partners() {
       {isPontoModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
           <div className="bg-neutral-900 border border-neutral-800 p-6 rounded-2xl w-full max-w-md relative">
-            <button onClick={() => setIsPontoModalOpen(false)} className="absolute top-4 right-4 text-neutral-500">
-              <X className="w-5 h-5"/>
-            </button>
-            <h3 className="text-xl font-black text-white uppercase mb-6 flex items-center gap-2">
-              <Clock className="w-5 h-5 text-[#DEAE60]"/> Registar Ponto
-            </h3>
-            
+            <button onClick={() => setIsPontoModalOpen(false)} className="absolute top-4 right-4 text-neutral-500"><X className="w-5 h-5"/></button>
+            <h3 className="text-xl font-black text-white uppercase mb-6 flex items-center gap-2"><Clock className="w-5 h-5 text-[#DEAE60]"/> Registar Ponto</h3>
             <form onSubmit={handlePonto} className="space-y-4">
               <div className="space-y-2">
                 <Label className="text-xs font-bold text-neutral-400 uppercase">Colaborador *</Label>
                 <Select required value={pontoForm.colaborador_id} onValueChange={v => setPontoForm({...pontoForm, colaborador_id: v})}>
-                  <SelectTrigger className={inputBaseStyle}>
-                    <SelectValue placeholder="Selecione o Colaborador"/>
-                  </SelectTrigger>
-                  <SelectContent className="bg-neutral-900 border-neutral-800 text-white">
-                    {colaboradores.map(c => (
-                      <SelectItem key={c.id} value={c.id.toString()}>{c.nome}</SelectItem>
-                    ))}
-                  </SelectContent>
+                  <SelectTrigger className={inputBaseStyle}><SelectValue placeholder="Selecione o Colaborador"/></SelectTrigger>
+                  <SelectContent className="bg-neutral-900 border-neutral-800 text-white">{colaboradores.map(c => (<SelectItem key={c.id} value={c.id.toString()}>{c.nome}</SelectItem>))}</SelectContent>
                 </Select>
               </div>
-              <div className="space-y-2">
-                <Label className="text-xs font-bold text-neutral-400 uppercase">Data *</Label>
-                <Input required type="date" value={pontoForm.data} onChange={e => setPontoForm({...pontoForm, data: e.target.value})} className={inputBaseStyle} />
-              </div>
+              <div className="space-y-2"><Label className="text-xs font-bold text-neutral-400 uppercase">Data *</Label><Input required type="date" value={pontoForm.data} onChange={e => setPontoForm({...pontoForm, data: e.target.value})} className={inputBaseStyle} /></div>
               <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label className="text-xs font-bold text-neutral-400 uppercase">Entrada</Label>
-                  <Input type="time" required value={pontoForm.entrada} onChange={e => setPontoForm({...pontoForm, entrada: e.target.value})} className={inputBaseStyle} />
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-xs font-bold text-neutral-400 uppercase">Saída</Label>
-                  <Input type="time" value={pontoForm.saida} onChange={e => setPontoForm({...pontoForm, saida: e.target.value})} className={inputBaseStyle} />
-                </div>
+                <div className="space-y-2"><Label className="text-xs font-bold text-neutral-400 uppercase">Entrada</Label><Input type="time" required value={pontoForm.entrada} onChange={e => setPontoForm({...pontoForm, entrada: e.target.value})} className={inputBaseStyle} /></div>
+                <div className="space-y-2"><Label className="text-xs font-bold text-neutral-400 uppercase">Saída</Label><Input type="time" value={pontoForm.saida} onChange={e => setPontoForm({...pontoForm, saida: e.target.value})} className={inputBaseStyle} /></div>
               </div>
-              <Button type="submit" className="w-full bg-[#DEAE60] hover:bg-[#DEAE60]/90 text-black font-black mt-4">
-                Guardar Ponto
-              </Button>
+              <Button type="submit" className="w-full bg-[#DEAE60] hover:bg-[#DEAE60]/90 text-black font-black mt-4">Guardar Ponto</Button>
             </form>
           </div>
         </div>
       )}
 
       {/* ========================================================================= */}
-      {/* MODAL: NOVO MOTOBOY E ROTA */}
+      {/* MODAL: NOVO MOTOBOY */}
       {/* ========================================================================= */}
       {isMotoboyModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
           <div className="bg-neutral-900 border border-neutral-800 p-6 rounded-2xl w-full max-w-md relative">
-            <button onClick={() => setIsMotoboyModalOpen(false)} className="absolute top-4 right-4 text-neutral-500">
-              <X className="w-5 h-5"/>
-            </button>
-            <h3 className="text-xl font-black text-white uppercase mb-6 flex items-center gap-2">
-              <Bike className="w-5 h-5 text-[#DEAE60]"/> Novo Motoboy
-            </h3>
+            <button onClick={() => setIsMotoboyModalOpen(false)} className="absolute top-4 right-4 text-neutral-500"><X className="w-5 h-5"/></button>
+            <h3 className="text-xl font-black text-white uppercase mb-6 flex items-center gap-2"><Bike className="w-5 h-5 text-[#DEAE60]"/> Novo Motoboy</h3>
             <form onSubmit={handleSaveMotoboy} className="space-y-4">
-              <div className="space-y-2">
-                <Label className="text-xs font-bold text-neutral-400 uppercase">Nome *</Label>
-                <Input required value={motoboyForm.nome} onChange={e => setMotoboyForm({...motoboyForm, nome: e.target.value})} className={inputBaseStyle} placeholder="Nome do Motoboy" />
-              </div>
-              <div className="space-y-2">
-                <Label className="text-xs font-bold text-neutral-400 uppercase">Telefone</Label>
-                <Input value={motoboyForm.telefone} onChange={e => setMotoboyForm({...motoboyForm, telefone: e.target.value})} className={inputBaseStyle} placeholder="Telefone" />
-              </div>
-              <Button type="submit" className="w-full bg-[#DEAE60] hover:bg-[#DEAE60]/90 text-black font-black mt-4">
-                Salvar Motoboy
-              </Button>
+              <div className="space-y-2"><Label className="text-xs font-bold text-neutral-400 uppercase">Nome *</Label><Input required value={motoboyForm.nome} onChange={e => setMotoboyForm({...motoboyForm, nome: e.target.value})} className={inputBaseStyle} /></div>
+              <div className="space-y-2"><Label className="text-xs font-bold text-neutral-400 uppercase">Telefone</Label><Input value={motoboyForm.telefone} onChange={e => setMotoboyForm({...motoboyForm, telefone: e.target.value})} className={inputBaseStyle} /></div>
+              <Button type="submit" className="w-full bg-[#DEAE60] hover:bg-[#DEAE60]/90 text-black font-black mt-4">Salvar Motoboy</Button>
             </form>
           </div>
         </div>
       )}
 
+      {/* ========================================================================= */}
+      {/* MODAL: REGISTRAR ROTA */}
+      {/* ========================================================================= */}
       {isRotaModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
           <div className="bg-neutral-900 border border-neutral-800 p-6 rounded-2xl w-full max-w-md relative">
-            <button onClick={() => setIsRotaModalOpen(false)} className="absolute top-4 right-4 text-neutral-500">
-              <X className="w-5 h-5"/>
-            </button>
-            <h3 className="text-xl font-black text-white uppercase mb-6 flex items-center gap-2">
-              <Map className="w-5 h-5 text-[#DEAE60]"/> Registrar Rota
-            </h3>
+            <button onClick={() => setIsRotaModalOpen(false)} className="absolute top-4 right-4 text-neutral-500"><X className="w-5 h-5"/></button>
+            <h3 className="text-xl font-black text-white uppercase mb-6 flex items-center gap-2"><Map className="w-5 h-5 text-[#DEAE60]"/> Registrar Rota</h3>
             <form onSubmit={handleSaveRota} className="space-y-4">
               <div className="space-y-2">
                 <Label className="text-xs font-bold text-neutral-400 uppercase">Motoboy *</Label>
                 <Select required value={rotaForm.motoboy_id} onValueChange={v => setRotaForm({...rotaForm, motoboy_id: v})}>
-                  <SelectTrigger className={inputBaseStyle}>
-                    <SelectValue placeholder="Selecione o Motoboy"/>
-                  </SelectTrigger>
-                  <SelectContent className="bg-neutral-900 border-neutral-800 text-white">
-                    {motoboys.map(m => (
-                      <SelectItem key={m.id} value={m.id.toString()}>{m.nome}</SelectItem>
-                    ))}
-                  </SelectContent>
+                  <SelectTrigger className={inputBaseStyle}><SelectValue placeholder="Selecione o Motoboy"/></SelectTrigger>
+                  <SelectContent className="bg-neutral-900 border-neutral-800 text-white">{motoboys.map(m => (<SelectItem key={m.id} value={m.id.toString()}>{m.nome}</SelectItem>))}</SelectContent>
                 </Select>
               </div>
-              <div className="space-y-2">
-                <Label className="text-xs font-bold text-neutral-400 uppercase">Data *</Label>
-                <Input required type="date" value={rotaForm.data} onChange={e => setRotaForm({...rotaForm, data: e.target.value})} className={inputBaseStyle} />
-              </div>
+              <div className="space-y-2"><Label className="text-xs font-bold text-neutral-400 uppercase">Data *</Label><Input required type="date" value={rotaForm.data} onChange={e => setRotaForm({...rotaForm, data: e.target.value})} className={inputBaseStyle} /></div>
               <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label className="text-xs font-bold text-neutral-400 uppercase">De Onde *</Label>
-                  <Input required value={rotaForm.de_onde} onChange={e => setRotaForm({...rotaForm, de_onde: e.target.value})} className={inputBaseStyle} placeholder="Ex: Clínica" />
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-xs font-bold text-neutral-400 uppercase">Para Onde *</Label>
-                  <Input required value={rotaForm.para_onde} onChange={e => setRotaForm({...rotaForm, para_onde: e.target.value})} className={inputBaseStyle} placeholder="Ex: Laboratório" />
-                </div>
+                <div className="space-y-2"><Label className="text-xs font-bold text-neutral-400 uppercase">De Onde *</Label><Input required value={rotaForm.de_onde} onChange={e => setRotaForm({...rotaForm, de_onde: e.target.value})} className={inputBaseStyle} /></div>
+                <div className="space-y-2"><Label className="text-xs font-bold text-neutral-400 uppercase">Para Onde *</Label><Input required value={rotaForm.para_onde} onChange={e => setRotaForm({...rotaForm, para_onde: e.target.value})} className={inputBaseStyle} /></div>
               </div>
-              <div className="space-y-2">
-                <Label className="text-xs font-bold text-neutral-400 uppercase">Valor da Corrida (R$) *</Label>
-                <Input required type="number" step="0.01" value={rotaForm.valor} onChange={e => setRotaForm({...rotaForm, valor: e.target.value})} className={inputBaseStyle} placeholder="0.00" />
-              </div>
-              <Button type="submit" className="w-full bg-[#DEAE60] hover:bg-[#DEAE60]/90 text-black font-black mt-4">
-                Salvar Rota
-              </Button>
+              <div className="space-y-2"><Label className="text-xs font-bold text-neutral-400 uppercase">Valor da Corrida (R$) *</Label><Input required type="number" step="0.01" value={rotaForm.valor} onChange={e => setRotaForm({...rotaForm, valor: e.target.value})} className={inputBaseStyle} /></div>
+              <Button type="submit" className="w-full bg-[#DEAE60] hover:bg-[#DEAE60]/90 text-black font-black mt-4">Salvar Rota</Button>
             </form>
           </div>
         </div>
@@ -1040,47 +933,23 @@ export default function Partners() {
       {isEditRotaModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
           <div className="bg-neutral-900 border border-neutral-800 p-6 rounded-2xl w-full max-w-md relative shadow-2xl">
-            <button onClick={() => { setIsEditRotaModalOpen(false); setEditingRotaId(null); setRotaForm({ motoboy_id: "", data: "", de_onde: "", para_onde: "", valor: "" }); }} className="absolute top-4 right-4 text-neutral-500 hover:text-white transition-colors">
-              <X className="w-5 h-5"/>
-            </button>
-            <h3 className="text-xl font-black text-white uppercase mb-6 flex items-center gap-2">
-              <Pencil className="w-5 h-5 text-[#DEAE60]"/> Editar Corrida
-            </h3>
+            <button onClick={() => { setIsEditRotaModalOpen(false); setEditingRotaId(null); setRotaForm({ motoboy_id: "", data: "", de_onde: "", para_onde: "", valor: "" }); }} className="absolute top-4 right-4 text-neutral-500 hover:text-white transition-colors"><X className="w-5 h-5"/></button>
+            <h3 className="text-xl font-black text-white uppercase mb-6 flex items-center gap-2"><Pencil className="w-5 h-5 text-[#DEAE60]"/> Editar Corrida</h3>
             <form onSubmit={handleEditRotaSubmit} className="space-y-4">
               <div className="space-y-2">
                 <Label className="text-xs font-bold text-neutral-400 uppercase">Motoboy *</Label>
                 <Select required value={rotaForm.motoboy_id} onValueChange={v => setRotaForm({...rotaForm, motoboy_id: v})}>
-                  <SelectTrigger className={inputBaseStyle}>
-                    <SelectValue placeholder="Selecione o Motoboy"/>
-                  </SelectTrigger>
-                  <SelectContent className="bg-neutral-900 border-neutral-800 text-white">
-                    {motoboys.map(m => (
-                      <SelectItem key={m.id} value={m.id.toString()}>{m.nome}</SelectItem>
-                    ))}
-                  </SelectContent>
+                  <SelectTrigger className={inputBaseStyle}><SelectValue placeholder="Selecione o Motoboy"/></SelectTrigger>
+                  <SelectContent className="bg-neutral-900 border-neutral-800 text-white">{motoboys.map(m => (<SelectItem key={m.id} value={m.id.toString()}>{m.nome}</SelectItem>))}</SelectContent>
                 </Select>
               </div>
-              <div className="space-y-2">
-                <Label className="text-xs font-bold text-neutral-400 uppercase">Data *</Label>
-                <Input required type="date" value={rotaForm.data} onChange={e => setRotaForm({...rotaForm, data: e.target.value})} className={inputBaseStyle} />
-              </div>
+              <div className="space-y-2"><Label className="text-xs font-bold text-neutral-400 uppercase">Data *</Label><Input required type="date" value={rotaForm.data} onChange={e => setRotaForm({...rotaForm, data: e.target.value})} className={inputBaseStyle} /></div>
               <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label className="text-xs font-bold text-neutral-400 uppercase">De Onde *</Label>
-                  <Input required value={rotaForm.de_onde} onChange={e => setRotaForm({...rotaForm, de_onde: e.target.value})} className={inputBaseStyle} placeholder="Ex: Clínica" />
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-xs font-bold text-neutral-400 uppercase">Para Onde *</Label>
-                  <Input required value={rotaForm.para_onde} onChange={e => setRotaForm({...rotaForm, para_onde: e.target.value})} className={inputBaseStyle} placeholder="Ex: Laboratório" />
-                </div>
+                <div className="space-y-2"><Label className="text-xs font-bold text-neutral-400 uppercase">De Onde *</Label><Input required value={rotaForm.de_onde} onChange={e => setRotaForm({...rotaForm, de_onde: e.target.value})} className={inputBaseStyle} /></div>
+                <div className="space-y-2"><Label className="text-xs font-bold text-neutral-400 uppercase">Para Onde *</Label><Input required value={rotaForm.para_onde} onChange={e => setRotaForm({...rotaForm, para_onde: e.target.value})} className={inputBaseStyle} /></div>
               </div>
-              <div className="space-y-2">
-                <Label className="text-xs font-bold text-neutral-400 uppercase">Valor da Corrida (R$) *</Label>
-                <Input required type="number" step="0.01" value={rotaForm.valor} onChange={e => setRotaForm({...rotaForm, valor: e.target.value})} className={inputBaseStyle} placeholder="0.00" />
-              </div>
-              <Button type="submit" className="w-full bg-[#DEAE60] hover:bg-[#DEAE60]/90 text-black font-black mt-4">
-                Atualizar Rota
-              </Button>
+              <div className="space-y-2"><Label className="text-xs font-bold text-neutral-400 uppercase">Valor da Corrida (R$) *</Label><Input required type="number" step="0.01" value={rotaForm.valor} onChange={e => setRotaForm({...rotaForm, valor: e.target.value})} className={inputBaseStyle} /></div>
+              <Button type="submit" className="w-full bg-[#DEAE60] hover:bg-[#DEAE60]/90 text-black font-black mt-4">Atualizar Rota</Button>
             </form>
           </div>
         </div>
@@ -1133,40 +1002,26 @@ export default function Partners() {
                     </div>
                   </div>
                   
-                  {/* Botões de Ação do Dentista */}
                   <div className="flex items-center gap-3 self-end md:self-auto w-full md:w-auto justify-end">
                     <Button 
                       variant="ghost" 
                       size="icon" 
                       onClick={(e) => {
                         e.stopPropagation(); 
-                        setDentistForm({
-                          nome: dentist.nome, 
-                          telefone: dentist.telefone || '', 
-                          cidade: dentist.cidade || '', 
-                          dia: String(dentist.aniversario_dia || ''), 
-                          mes: String(dentist.aniversario_mes || '')
-                        }); 
+                        setDentistForm({nome: dentist.nome, telefone: dentist.telefone || '', cidade: dentist.cidade || '', dia: String(dentist.aniversario_dia || ''), mes: String(dentist.aniversario_mes || '')}); 
                         setEditingDentistId(dentist.id); 
                         setIsDentistModalOpen(true);
                       }} 
                       className="text-neutral-400 hover:text-white"
                       title="Editar Parceiro"
-                    >
-                      <Pencil className="w-4 h-4"/>
-                    </Button>
+                    ><Pencil className="w-4 h-4"/></Button>
                     <Button 
                       variant="ghost" 
                       size="icon" 
-                      onClick={(e) => {
-                        e.stopPropagation(); 
-                        handleDeleteDentist(dentist.id);
-                      }} 
+                      onClick={(e) => {e.stopPropagation(); handleDeleteDentist(dentist.id);}} 
                       className="text-neutral-400 hover:text-red-400"
                       title="Eliminar Parceiro"
-                    >
-                      <Trash2 className="w-4 h-4"/>
-                    </Button>
+                    ><Trash2 className="w-4 h-4"/></Button>
                     {isExpanded ? <ChevronUp className="w-5 h-5 text-[#DEAE60]" /> : <ChevronDown className="w-5 h-5" />}
                   </div>
                 </div>
@@ -1180,19 +1035,13 @@ export default function Partners() {
                         <div key={monthYear} className="border border-neutral-800 rounded-xl bg-neutral-900">
                           <div className="bg-neutral-800/50 p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-neutral-800">
                             <h4 className="font-black text-white uppercase text-sm flex items-center">
-                              <CalendarIcon className="w-4 h-4 text-[#DEAE60] mr-2"/> 
-                              Fecho: {monthYear}
+                              <CalendarIcon className="w-4 h-4 text-[#DEAE60] mr-2"/> Fecho: {monthYear}
                             </h4>
                             <Button 
-                              onClick={(e) => {
-                                e.stopPropagation(); 
-                                openDentistPdfModal(dentist, monthYear, monthServices);
-                              }} 
+                              onClick={(e) => { e.stopPropagation(); openDentistPdfModal(dentist, monthYear, monthServices); }} 
                               variant="ghost" 
                               className="text-[#DEAE60] h-9 border border-[#DEAE60]/20 hover:bg-[#DEAE60]/10 w-full sm:w-auto"
-                            >
-                              <Printer className="w-4 h-4 mr-2" /> Exportar PDF c/ Custos
-                            </Button>
+                            ><Printer className="w-4 h-4 mr-2" /> Exportar PDF c/ Custos</Button>
                           </div>
                           
                           <div className="p-4 overflow-x-auto custom-scrollbar">
@@ -1209,36 +1058,16 @@ export default function Partners() {
                               <tbody>
                                 {monthServices.map((s: any) => (
                                   <tr key={s.id} className="border-b border-neutral-800/50 hover:bg-neutral-800/20">
-                                    <td className="py-3 text-xs text-neutral-400">
-                                      {new Date(s.data_saida + "T00:00:00").toLocaleDateString('pt-BR')}
-                                    </td>
+                                    <td className="py-3 text-xs text-neutral-400">{new Date(s.data_saida + "T00:00:00").toLocaleDateString('pt-BR')}</td>
                                     <td className="py-3 text-xs font-bold text-neutral-300 uppercase">
                                       {s.paciente_nome || 'NÃO INFORMADO'}
                                       {s.paciente_telefone && <span className="block text-[10px] text-neutral-500 font-normal mt-0.5">📞 {s.paciente_telefone}</span>}
                                     </td>
                                     <td className="py-3 text-xs font-bold text-white uppercase">{s.procedimento}</td>
-                                    <td className="py-3 text-xs font-black text-[#DEAE60] text-right">
-                                      R$ {Number(s.valor_bruto).toFixed(2).replace('.', ',')}
-                                    </td>
+                                    <td className="py-3 text-xs font-black text-[#DEAE60] text-right">R$ {Number(s.valor_bruto).toFixed(2).replace('.', ',')}</td>
                                     <td className="py-3 text-center space-x-1">
-                                      <Button 
-                                        size="icon" 
-                                        variant="ghost" 
-                                        className="w-8 h-8 text-neutral-400 hover:text-white" 
-                                        onClick={() => setLocation(`/services/${s.id}`)}
-                                        title="Editar Serviço"
-                                      >
-                                        <Pencil className="w-4 h-4"/>
-                                      </Button>
-                                      <Button 
-                                        size="icon" 
-                                        variant="ghost" 
-                                        className="w-8 h-8 text-neutral-400 hover:text-red-500 hover:bg-red-500/10" 
-                                        onClick={() => handleDeleteService(s.id)}
-                                        title="Eliminar Serviço"
-                                      >
-                                        <Trash2 className="w-4 h-4"/>
-                                      </Button>
+                                      <Button size="icon" variant="ghost" className="w-8 h-8 text-neutral-400 hover:text-white" onClick={() => setLocation(`/services/${s.id}`)} title="Editar Serviço"><Pencil className="w-4 h-4"/></Button>
+                                      <Button size="icon" variant="ghost" className="w-8 h-8 text-neutral-400 hover:text-red-500 hover:bg-red-500/10" onClick={() => handleDeleteService(s.id)} title="Eliminar Serviço"><Trash2 className="w-4 h-4"/></Button>
                                     </td>
                                   </tr>
                                 ))}
@@ -1276,19 +1105,8 @@ export default function Partners() {
             <p className="text-neutral-400 text-sm mt-1">Gira os horários da equipa, exporte os espelhos e integre os salários.</p>
           </div>
           <div className="flex flex-col sm:flex-row gap-3">
-            <Button 
-              variant="outline" 
-              onClick={() => setIsColabModalOpen(true)} 
-              className="border-neutral-700 text-white font-bold h-10 w-full sm:w-auto"
-            >
-              Novo Colaborador
-            </Button>
-            <Button 
-              onClick={() => setIsPontoModalOpen(true)} 
-              className="bg-[#DEAE60] hover:bg-[#DEAE60]/90 text-black font-bold h-10 w-full sm:w-auto"
-            >
-              <Clock className="w-4 h-4 mr-2" /> Bater Ponto
-            </Button>
+            <Button variant="outline" onClick={() => setIsColabModalOpen(true)} className="border-neutral-700 text-white font-bold h-10 w-full sm:w-auto">Novo Colaborador</Button>
+            <Button onClick={() => setIsPontoModalOpen(true)} className="bg-[#DEAE60] hover:bg-[#DEAE60]/90 text-black font-bold h-10 w-full sm:w-auto"><Clock className="w-4 h-4 mr-2" /> Bater Ponto</Button>
           </div>
         </div>
 
@@ -1302,26 +1120,12 @@ export default function Partners() {
               <Card key={c.id} className="bg-neutral-900/80 border-neutral-800 shadow-xl transition-all">
                 <div onClick={() => setExpandedColab(isExpanded ? null : c.id)} className="p-6 cursor-pointer hover:bg-neutral-800/30 flex items-center justify-between">
                   <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-full flex items-center justify-center font-black text-xl bg-neutral-800 text-neutral-300 border border-neutral-700">
-                      {c.nome.charAt(0).toUpperCase()}
-                    </div>
-                    <div>
-                      <h3 className="text-lg font-black text-white uppercase">{c.nome}</h3>
-                      <p className="text-sm text-neutral-400">{c.cargo || 'Equipa'}</p>
-                    </div>
+                    <div className="w-12 h-12 rounded-full flex items-center justify-center font-black text-xl bg-neutral-800 text-neutral-300 border border-neutral-700">{c.nome.charAt(0).toUpperCase()}</div>
+                    <div><h3 className="text-lg font-black text-white uppercase">{c.nome}</h3><p className="text-sm text-neutral-400">{c.cargo || 'Equipa'}</p></div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Button 
-                      variant="ghost" 
-                      onClick={(e) => { e.stopPropagation(); handleDeleteColaborador(c.id); }} 
-                      className="w-8 h-8 p-0 text-neutral-500 hover:text-red-500 hover:bg-red-500/10" 
-                      title="Excluir Colaborador"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                    <div className="flex items-center justify-center w-8 h-8">
-                      {isExpanded ? <ChevronUp className="w-5 h-5 text-[#DEAE60]" /> : <ChevronDown className="w-5 h-5" />}
-                    </div>
+                    <Button variant="ghost" onClick={(e) => { e.stopPropagation(); handleDeleteColaborador(c.id); }} className="w-8 h-8 p-0 text-neutral-500 hover:text-red-500 hover:bg-red-500/10" title="Excluir Colaborador"><Trash2 className="w-4 h-4" /></Button>
+                    <div className="flex items-center justify-center w-8 h-8">{isExpanded ? <ChevronUp className="w-5 h-5 text-[#DEAE60]" /> : <ChevronDown className="w-5 h-5" />}</div>
                   </div>
                 </div>
                 
@@ -1334,32 +1138,11 @@ export default function Partners() {
                         <div key={monthYear} className="border border-neutral-800 rounded-xl bg-neutral-900">
                           <div className="bg-neutral-800/50 p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-neutral-800">
                             <h4 className="font-black text-white uppercase text-sm flex items-center">
-                              <CalendarIcon className="w-4 h-4 text-[#DEAE60] mr-2"/> 
-                              Fecho: {monthYear}
+                              <CalendarIcon className="w-4 h-4 text-[#DEAE60] mr-2"/> Fecho: {monthYear}
                             </h4>
                             <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-                              <Button 
-                                onClick={(e) => {
-                                  e.stopPropagation(); 
-                                  printColaboradorPdf(c, monthYear, monthPontos, false);
-                                }} 
-                                variant="ghost" 
-                                className="text-neutral-300 h-9 bg-neutral-800 hover:bg-neutral-700 w-full sm:w-auto"
-                              >
-                                <Eye className="w-4 h-4 mr-2" /> Visualizar Espelho
-                              </Button>
-                              <Button 
-                                onClick={(e) => {
-                                  e.stopPropagation(); 
-                                  setHourlyRate("20"); // Reseta para o valor padrão sempre que abrir
-                                  setPaymentData({colab: c, month: monthYear, pontos: monthPontos}); 
-                                  setIsPaymentModalOpen(true);
-                                }} 
-                                variant="ghost" 
-                                className="text-green-400 h-9 bg-green-500/10 hover:bg-green-500/20 w-full sm:w-auto"
-                              >
-                                <DollarSign className="w-4 h-4 mr-2" /> Pagar & Exportar
-                              </Button>
+                              <Button onClick={(e) => { e.stopPropagation(); printColaboradorPdf(c, monthYear, monthPontos, false); }} variant="ghost" className="text-neutral-300 h-9 bg-neutral-800 hover:bg-neutral-700 w-full sm:w-auto"><Eye className="w-4 h-4 mr-2" /> Visualizar Espelho</Button>
+                              <Button onClick={(e) => { e.stopPropagation(); setLancarDespesa(true); setHourlyRate("20"); setPaymentData({colab: c, month: monthYear, pontos: monthPontos}); setIsPaymentModalOpen(true); }} variant="ghost" className="text-green-400 h-9 bg-green-500/10 hover:bg-green-500/20 w-full sm:w-auto"><DollarSign className="w-4 h-4 mr-2" /> Fechar Acerto</Button>
                             </div>
                           </div>
                           
@@ -1377,25 +1160,11 @@ export default function Partners() {
                               <tbody>
                                 {monthPontos.map((p: any) => (
                                   <tr key={p.id} className="border-b border-neutral-800/50 hover:bg-neutral-800/20">
-                                    <td className="py-3 text-xs text-neutral-400">
-                                      {new Date(p.data + "T00:00:00").toLocaleDateString('pt-BR')}
-                                    </td>
+                                    <td className="py-3 text-xs text-neutral-400">{new Date(p.data + "T00:00:00").toLocaleDateString('pt-BR')}</td>
                                     <td className="py-3 text-xs font-black text-white">{p.entrada || '-'}</td>
                                     <td className="py-3 text-xs font-black text-white">{p.saida || '-'}</td>
-                                    <td className="py-3 text-xs text-neutral-400 font-bold">
-                                      {calcHoras(p.entrada, p.saida)}
-                                    </td>
-                                    <td className="py-3 text-center">
-                                      <Button 
-                                        variant="ghost" 
-                                        size="icon" 
-                                        className="w-8 h-8 text-neutral-400 hover:text-red-500 hover:bg-red-500/10" 
-                                        onClick={() => handleDeletePonto(p.id)}
-                                        title="Eliminar Ponto"
-                                      >
-                                        <Trash2 className="w-4 h-4"/>
-                                      </Button>
-                                    </td>
+                                    <td className="py-3 text-xs text-neutral-400 font-bold">{calcHoras(p.entrada, p.saida)}</td>
+                                    <td className="py-3 text-center"><Button variant="ghost" size="icon" className="w-8 h-8 text-neutral-400 hover:text-red-500 hover:bg-red-500/10" onClick={() => handleDeletePonto(p.id)} title="Eliminar Ponto"><Trash2 className="w-4 h-4"/></Button></td>
                                   </tr>
                                 ))}
                               </tbody>
@@ -1432,12 +1201,8 @@ export default function Partners() {
             <p className="text-neutral-400 text-sm mt-2">Controle rotas, taxas de entrega e gere extratos de acerto</p>
           </div>
           <div className="flex flex-col sm:flex-row gap-3">
-            <Button variant="outline" onClick={() => setIsMotoboyModalOpen(true)} className="bg-transparent border-neutral-700 text-white hover:bg-neutral-800 font-bold rounded-lg h-10 w-full sm:w-auto">
-              Novo Motoboy
-            </Button>
-            <Button onClick={() => setIsRotaModalOpen(true)} className="bg-[#DEAE60] hover:bg-[#DEAE60]/90 text-neutral-950 font-bold rounded-lg h-10 w-full sm:w-auto">
-              <Map className="w-4 h-4 mr-2" /> Registrar Rota
-            </Button>
+            <Button variant="outline" onClick={() => setIsMotoboyModalOpen(true)} className="bg-transparent border-neutral-700 text-white hover:bg-neutral-800 font-bold rounded-lg h-10 w-full sm:w-auto">Novo Motoboy</Button>
+            <Button onClick={() => setIsRotaModalOpen(true)} className="bg-[#DEAE60] hover:bg-[#DEAE60]/90 text-neutral-950 font-bold rounded-lg h-10 w-full sm:w-auto"><Map className="w-4 h-4 mr-2" /> Registrar Rota</Button>
           </div>
         </div>
 
@@ -1451,33 +1216,16 @@ export default function Partners() {
               <Card key={motoboy.id} className="bg-neutral-900/80 border-neutral-800 overflow-hidden shadow-xl transition-all">
                 <div onClick={() => setExpandedMotoboy(isExpanded ? null : motoboy.id)} className="p-6 cursor-pointer hover:bg-neutral-800/30 transition-colors flex flex-col md:flex-row md:items-center justify-between gap-4">
                   <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-full flex items-center justify-center font-black text-lg bg-neutral-800 text-neutral-300 border border-neutral-700">
-                      {motoboy.nome.charAt(0).toUpperCase()}
-                    </div>
+                    <div className="w-12 h-12 rounded-full flex items-center justify-center font-black text-lg bg-neutral-800 text-neutral-300 border border-neutral-700">{motoboy.nome.charAt(0).toUpperCase()}</div>
                     <div>
-                      <h3 className="text-lg font-black text-white uppercase tracking-tight flex items-center gap-2">
-                        {motoboy.nome}
-                      </h3>
-                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1 text-sm text-neutral-400 font-medium">
-                        {motoboy.telefone && <span className="flex items-center gap-1"><Phone className="w-3 h-3"/> {motoboy.telefone}</span>}
-                      </div>
+                      <h3 className="text-lg font-black text-white uppercase tracking-tight flex items-center gap-2">{motoboy.nome}</h3>
+                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1 text-sm text-neutral-400 font-medium">{motoboy.telefone && <span className="flex items-center gap-1"><Phone className="w-3 h-3"/> {motoboy.telefone}</span>}</div>
                     </div>
                   </div>
                   <div className="flex items-center gap-3 text-neutral-500 pl-16 md:pl-0">
-                    <span className="hidden sm:inline-block text-xs font-bold uppercase tracking-widest bg-neutral-950 px-3 py-1 rounded-md border border-neutral-800">
-                      {groupedRotas.length} Meses
-                    </span>
-                    <Button 
-                      variant="ghost" 
-                      onClick={(e) => { e.stopPropagation(); handleDeleteMotoboy(motoboy.id); }} 
-                      className="w-8 h-8 p-0 text-neutral-500 hover:text-red-500 hover:bg-red-500/10" 
-                      title="Excluir Motoboy"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                    <div className="flex items-center justify-center w-8 h-8">
-                      {isExpanded ? <ChevronUp className="w-5 h-5 text-[#DEAE60]" /> : <ChevronDown className="w-5 h-5" />}
-                    </div>
+                    <span className="hidden sm:inline-block text-xs font-bold uppercase tracking-widest bg-neutral-950 px-3 py-1 rounded-md border border-neutral-800">{groupedRotas.length} Meses</span>
+                    <Button variant="ghost" onClick={(e) => { e.stopPropagation(); handleDeleteMotoboy(motoboy.id); }} className="w-8 h-8 p-0 text-neutral-500 hover:text-red-500 hover:bg-red-500/10" title="Excluir Motoboy"><Trash2 className="w-4 h-4" /></Button>
+                    <div className="flex items-center justify-center w-8 h-8">{isExpanded ? <ChevronUp className="w-5 h-5 text-[#DEAE60]" /> : <ChevronDown className="w-5 h-5" />}</div>
                   </div>
                 </div>
 
@@ -1503,9 +1251,9 @@ export default function Partners() {
                                     <p className="text-[10px] font-bold text-neutral-500 uppercase tracking-widest">A Pagar no Mês</p>
                                     <p className="text-lg font-black text-[#DEAE60]">R$ {totalMes.toFixed(2).replace('.', ',')}</p>
                                   </div>
-                                  <Button onClick={(e) => { e.stopPropagation(); printMotoboyReport(motoboy, monthYear, monthRotas); }} variant="ghost" className="text-[#DEAE60] hover:bg-[#DEAE60]/10 hover:text-[#DEAE60] h-10 border border-[#DEAE60]/20">
+                                  <Button onClick={(e) => { e.stopPropagation(); setLancarDespesa(true); setMotoboyPaymentData({motoboy, month: monthYear, rotas: monthRotas}); setIsMotoboyPaymentModalOpen(true); }} variant="ghost" className="text-[#DEAE60] hover:bg-[#DEAE60]/10 hover:text-[#DEAE60] h-10 border border-[#DEAE60]/20">
                                     <Printer className="w-4 h-4 sm:mr-2" />
-                                    <span className="hidden sm:inline uppercase text-xs font-bold tracking-widest">Imprimir Acerto</span>
+                                    <span className="hidden sm:inline uppercase text-xs font-bold tracking-widest">Fechar Acerto</span>
                                   </Button>
                                 </div>
                               </div>
@@ -1528,22 +1276,8 @@ export default function Partners() {
                                         <td className="py-3 text-xs font-bold text-white uppercase">{rota.para_onde}</td>
                                         <td className="py-3 text-xs font-black text-white text-right">R$ {Number(rota.valor).toFixed(2).replace('.', ',')}</td>
                                         <td className="py-3 text-center space-x-1">
-                                          <Button 
-                                            size="icon" 
-                                            variant="ghost" 
-                                            className="w-8 h-8 text-neutral-400 hover:text-white" 
-                                            onClick={(e) => { e.stopPropagation(); openEditRotaModal(rota); }}
-                                          >
-                                            <Pencil className="w-4 h-4"/>
-                                          </Button>
-                                          <Button 
-                                            size="icon" 
-                                            variant="ghost" 
-                                            className="w-8 h-8 text-neutral-400 hover:text-red-500 hover:bg-red-500/10" 
-                                            onClick={(e) => { e.stopPropagation(); handleDeleteRota(rota.id); }}
-                                          >
-                                            <Trash2 className="w-4 h-4"/>
-                                          </Button>
+                                          <Button size="icon" variant="ghost" className="w-8 h-8 text-neutral-400 hover:text-white" onClick={(e) => { e.stopPropagation(); openEditRotaModal(rota); }}><Pencil className="w-4 h-4"/></Button>
+                                          <Button size="icon" variant="ghost" className="w-8 h-8 text-neutral-400 hover:text-red-500 hover:bg-red-500/10" onClick={(e) => { e.stopPropagation(); handleDeleteRota(rota.id); }}><Trash2 className="w-4 h-4"/></Button>
                                         </td>
                                       </tr>
                                     ))}
