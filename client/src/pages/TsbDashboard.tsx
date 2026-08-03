@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Users, Plus, Printer, CalendarDays, Syringe, Clock, X, LogOut, Trash2, RefreshCw, Receipt, Pencil, DollarSign } from "lucide-react";
+import { Users, Plus, Printer, CalendarDays, Syringe, Clock, X, LogOut, Trash2, RefreshCw, Receipt, Pencil, DollarSign, Percent } from "lucide-react";
 import { useLocation } from "wouter";
 
 interface TsbPatient {
@@ -32,7 +32,7 @@ export default function TsbDashboard() {
   const [isEditPatientModalOpen, setIsEditPatientModalOpen] = useState(false);
   const [editingPatientId, setEditingPatientId] = useState<number | null>(null);
 
-  const defaultProcedure = "Prevenção / Rotina";
+  const defaultProcedure = "Limpeza Profissional";
 
   const LISTA_PROCEDIMENTOS_PADRAO = [
     { name: "Limpeza", price: 180 },
@@ -42,14 +42,17 @@ export default function TsbDashboard() {
     { name: "Emergência", price: 80 }
   ];
 
-  // ESTADOS DO FORMULÁRIO DE PACIENTE (ABA 1) - AGORA COM PROCEDIMENTOS
+  // Função auxiliar para resetar procedimentos sem marcadores
+  const getFreshProcedures = () => LISTA_PROCEDIMENTOS_PADRAO.map(p => ({ name: p.name, checked: false, value: p.price.toString() }));
+
+  // Form de Clientes (Aba 1)
   const [patientForm, setPatientForm] = useState({
-    nome: "", telefone: "", procedimento: defaultProcedure,
-    recorrencia_meses: "6", data_inicio: new Date().toISOString().split('T')[0],
+    nome: "",
+    telefone: "",
+    procedimento: defaultProcedure,
+    recorrencia_meses: "6",
     ultimo_atendimento: new Date().toISOString().split('T')[0],
-    proximo_atendimento: "",
-    procedimentos: LISTA_PROCEDIMENTOS_PADRAO.map(p => ({ name: p.name, checked: false, value: p.price.toString() })),
-    extra_nome: "", extra_valor: ""
+    proximo_atendimento: ""
   });
 
   const [activeTab, setActiveTab] = useState<"recorrencias" | "financas">("recorrencias");
@@ -58,16 +61,17 @@ export default function TsbDashboard() {
   const [isAtendimentoModalOpen, setIsAtendimentoModalOpen] = useState(false);
   const [editingAtendimentoId, setEditingAtendimentoId] = useState<number | null>(null);
 
+  // Form de Atendimentos Financeiros (Aba 2)
   const [atendimentoForm, setAtendimentoForm] = useState({
     paciente_selecionado: "novo",
     paciente_nome: "",
     paciente_telefone: "",
     data: new Date().toISOString().split('T')[0],
     descricao: "",
-    proximo_retorno_meses: "6", 
-    procedimentos: LISTA_PROCEDIMENTOS_PADRAO.map(p => ({ name: p.name, checked: false, value: p.price.toString() })),
-    extra_nome: "", 
-    extra_valor: "" 
+    proximo_retorno_meses: "6",
+    procedimentos: getFreshProcedures(),
+    extra_nome: "",
+    extra_valor: ""
   });
 
   const fetchPatients = async () => {
@@ -99,7 +103,7 @@ export default function TsbDashboard() {
     fetchAtendimentos();
   }, [filtroFinancas]);
 
-  // CÁLCULO INTELIGENTE DO PRÓXIMO RETORNO PARA PACIENTES (ABA 1)
+  // Cálculo da data do próximo retorno para cadastro/edição de cliente
   useEffect(() => {
     if (patientForm.ultimo_atendimento && patientForm.recorrencia_meses !== "") {
       const meses = parseInt(patientForm.recorrencia_meses) || 0;
@@ -109,80 +113,37 @@ export default function TsbDashboard() {
     }
   }, [patientForm.ultimo_atendimento, patientForm.recorrencia_meses]);
 
-  const handlePatientCheckbox = (idx: number, checked: boolean) => {
-    const atualizados = [...patientForm.procedimentos];
-    atualizados[idx].checked = checked;
-    setPatientForm(prev => ({ ...prev, procedimentos: atualizados }));
-  };
-
-  const handlePatientValorProc = (idx: number, val: string) => {
-    const atualizados = [...patientForm.procedimentos];
-    atualizados[idx].value = val;
-    setPatientForm(prev => ({ ...prev, procedimentos: atualizados }));
-  };
-
+  // =========================================================================
+  // SALVAR / EDITAR CLIENTE (ABA 1) - SEM IMPACTO NO FINANCEIRO
+  // =========================================================================
   const handleSavePatient = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
       const token = localStorage.getItem("tsb_token");
-      
-      const procsSelecionados = patientForm.procedimentos
-        .filter(p => p.checked)
-        .map(p => ({ name: p.name, value: parseFloat(p.value) || 0 }));
-
-      if (patientForm.extra_nome.trim()) {
-        procsSelecionados.push({
-          name: patientForm.extra_nome.trim(),
-          value: parseFloat(patientForm.extra_valor) || 0
-        });
-      }
-
-      const payload = {
-        ...patientForm,
-        procedimentos_realizados: procsSelecionados // Sincroniza com o backend na criação
-      };
-
-      await api.post("/tsb", payload, { headers: { Authorization: `Bearer ${token}` } });
-      toast.success("Paciente cadastrado com sucesso no Clinic TSB!");
+      await api.post("/tsb", { ...patientForm }, { headers: { Authorization: `Bearer ${token}` } });
+      toast.success("Cliente cadastrado com sucesso!");
       setIsModalOpen(false);
       setPatientForm({
         nome: "", telefone: "", procedimento: defaultProcedure,
-        recorrencia_meses: "6", data_inicio: new Date().toISOString().split('T')[0],
-        ultimo_atendimento: new Date().toISOString().split('T')[0], proximo_atendimento: "",
-        procedimentos: LISTA_PROCEDIMENTOS_PADRAO.map(p => ({ name: p.name, checked: false, value: p.price.toString() })),
-        extra_nome: "", extra_valor: ""
+        recorrencia_meses: "6",
+        ultimo_atendimento: new Date().toISOString().split('T')[0],
+        proximo_atendimento: ""
       });
       fetchPatients();
-      fetchAtendimentos(); // Puxa também para preencher a aba 2
     } catch (e) {
-      toast.error("Erro ao salvar paciente.");
+      toast.error("Erro ao salvar cliente.");
     }
   };
 
   const handleOpenEditPatientModal = (patient: TsbPatient) => {
     setEditingPatientId(patient.id);
-    
-    // Tenta mapear os checkboxes baseados na string salva no último atendimento
-    const lastProcsStr = patient.ultimo_procedimento || "";
-    const mapeadosFixos = LISTA_PROCEDIMENTOS_PADRAO.map(p => {
-      const taMarcado = lastProcsStr.includes(p.name);
-      return {
-        name: p.name,
-        checked: taMarcado,
-        value: p.price.toString()
-      };
-    });
-
     setPatientForm({
       nome: patient.nome,
       telefone: patient.telefone || "",
       procedimento: patient.procedimento || defaultProcedure,
-      recorrencia_meses: patient.recorrencia_meses.toString(),
-      data_inicio: patient.data_inicio ? patient.data_inicio.split("T")[0] : "",
-      ultimo_atendimento: patient.ultimo_atendimento ? patient.ultimo_atendimento.split("T")[0] : "",
-      proximo_atendimento: patient.proximo_atendimento ? patient.proximo_atendimento.split("T")[0] : "",
-      procedimentos: mapeadosFixos,
-      extra_nome: "", extra_valor: ""
+      recorrencia_meses: (patient.recorrencia_meses || 6).toString(),
+      ultimo_atendimento: patient.ultimo_atendimento ? patient.ultimo_atendimento.split("T")[0] : new Date().toISOString().split('T')[0],
+      proximo_atendimento: patient.proximo_atendimento ? patient.proximo_atendimento.split("T")[0] : ""
     });
     setIsEditPatientModalOpen(true);
   };
@@ -191,38 +152,13 @@ export default function TsbDashboard() {
     e.preventDefault();
     try {
       const token = localStorage.getItem("tsb_token");
-      
-      const procsSelecionados = patientForm.procedimentos
-        .filter(p => p.checked)
-        .map(p => ({ name: p.name, value: parseFloat(p.value) || 0 }));
-
-      if (patientForm.extra_nome.trim()) {
-        procsSelecionados.push({
-          name: patientForm.extra_nome.trim(),
-          value: parseFloat(patientForm.extra_valor) || 0
-        });
-      }
-
-      const payload = {
-        ...patientForm,
-        procedimentos_realizados: procsSelecionados // O Backend usa isso para Upsert!
-      };
-
-      await api.put(`/tsb/${editingPatientId}`, payload, { headers: { Authorization: `Bearer ${token}` } });
-      toast.success("Cadastro atualizado e financeiro sincronizado!");
+      await api.put(`/tsb/${editingPatientId}`, { ...patientForm }, { headers: { Authorization: `Bearer ${token}` } });
+      toast.success("Cadastro do cliente atualizado!");
       setIsEditPatientModalOpen(false);
       setEditingPatientId(null);
-      setPatientForm({
-        nome: "", telefone: "", procedimento: defaultProcedure,
-        recorrencia_meses: "6", data_inicio: new Date().toISOString().split('T')[0],
-        ultimo_atendimento: new Date().toISOString().split('T')[0], proximo_atendimento: "",
-        procedimentos: LISTA_PROCEDIMENTOS_PADRAO.map(p => ({ name: p.name, checked: false, value: p.price.toString() })),
-        extra_nome: "", extra_valor: ""
-      });
       fetchPatients();
-      fetchAtendimentos(); // Recarrega aba financeira
     } catch (err) {
-      toast.error("Erro ao atualizar dados do paciente.");
+      toast.error("Erro ao atualizar dados do cliente.");
     }
   };
 
@@ -238,14 +174,14 @@ export default function TsbDashboard() {
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm("Deseja realmente remover este paciente do controle de TSB?")) return;
+    if (!confirm("Deseja realmente remover este cliente do controle de TSB?")) return;
     try {
       const token = localStorage.getItem("tsb_token");
       await api.delete(`/tsb/${id}`, { headers: { Authorization: `Bearer ${token}` } });
-      toast.success("Paciente removido com sucesso!");
+      toast.success("Cliente removido com sucesso!");
       fetchPatients();
     } catch (e) {
-      toast.error("Erro ao apagar paciente.");
+      toast.error("Erro ao apagar cliente.");
     }
   };
 
@@ -255,7 +191,7 @@ export default function TsbDashboard() {
   };
 
   // =========================================================================
-  // FUNÇÕES DE ATENDIMENTO FINANCEIRO (Aba 2)
+  // REGISTRO DE ATENDIMENTOS FINANCEIROS (ABA 2)
   // =========================================================================
   const handleSelectPacienteMudanca = (val: string) => {
     if (val === "novo") {
@@ -274,15 +210,21 @@ export default function TsbDashboard() {
   };
 
   const handleCheckboxMudanca = (idx: number, checked: boolean) => {
-    const atualizados = [...atendimentoForm.procedimentos];
-    atualizados[idx].checked = checked;
-    setAtendimentoForm(prev => ({ ...prev, procedimentos: atualizados }));
+    setAtendimentoForm(prev => {
+      const atualizados = prev.procedimentos.map((proc, i) =>
+        i === idx ? { ...proc, checked } : proc
+      );
+      return { ...prev, procedimentos: atualizados };
+    });
   };
 
   const handleValorProcedimentoMudanca = (idx: number, val: string) => {
-    const atualizados = [...atendimentoForm.procedimentos];
-    atualizados[idx].value = val;
-    setAtendimentoForm(prev => ({ ...prev, procedimentos: atualizados }));
+    setAtendimentoForm(prev => {
+      const atualizados = prev.procedimentos.map((proc, i) =>
+        i === idx ? { ...proc, value: val } : proc
+      );
+      return { ...prev, procedimentos: atualizados };
+    });
   };
 
   const handleSaveAtendimento = async (e: React.FormEvent) => {
@@ -303,7 +245,7 @@ export default function TsbDashboard() {
       return toast.error("Preencha o nome do paciente e a data do atendimento.");
     }
     if (procsSelecionados.length === 0) {
-      return toast.error("Selecione ou digite pelo menos um procedimento realizado.");
+      return toast.error("Selecione pelo menos um procedimento realizado.");
     }
 
     const payload = {
@@ -322,15 +264,20 @@ export default function TsbDashboard() {
         toast.success("Atendimento TSB atualizado!");
       } else {
         await api.post("/tsb/atendimentos", payload, { headers: { Authorization: `Bearer ${token}` } });
-        toast.success("Atendimento TSB registrado com sucesso!");
+        toast.success("Atendimento TSB registrado no financeiro com sucesso!");
       }
       setIsAtendimentoModalOpen(false);
       setEditingAtendimentoId(null);
       setAtendimentoForm({
-        paciente_selecionado: "novo", paciente_nome: "", paciente_telefone: "",
-        data: new Date().toISOString().split('T')[0], descricao: "", proximo_retorno_meses: "6",
-        procedimentos: LISTA_PROCEDIMENTOS_PADRAO.map(p => ({ name: p.name, checked: false, value: p.price.toString() })),
-        extra_nome: "", extra_valor: ""
+        paciente_selecionado: "novo",
+        paciente_nome: "",
+        paciente_telefone: "",
+        data: new Date().toISOString().split('T')[0],
+        descricao: "",
+        proximo_retorno_meses: "6",
+        procedimentos: getFreshProcedures(),
+        extra_nome: "",
+        extra_valor: ""
       });
       fetchAtendimentos();
       fetchPatients(); 
@@ -375,10 +322,11 @@ export default function TsbDashboard() {
       toast.success("Atendimento excluído.");
       fetchAtendimentos();
     } catch (err) {
-      toast.error("Erro ao excluir. Tente novamente.");
+      toast.error("Erro ao excluir.");
     }
   };
 
+  // Impressão do Recibo / Extrato Individual com Comissão
   const handlePrintAtendimento = (at: any) => {
     const printWindow = window.open('', '_blank');
     if (!printWindow) return toast.error("Permita pop-ups no navegador.");
@@ -393,6 +341,8 @@ export default function TsbDashboard() {
       `;
     });
 
+    const comissao = Number(at.valor_total) * 0.425;
+
     const htmlContent = `
       <!DOCTYPE html>
       <html>
@@ -406,7 +356,8 @@ export default function TsbDashboard() {
           table { width: 100%; border-collapse: collapse; margin-top: 15px; }
           th { border-bottom: 2px solid #0f766e; text-align: left; padding: 8px; font-weight: bold; background: #f3f4f6; text-transform: uppercase; font-size: 11px; }
           td { padding: 9px 8px; border-bottom: 1px dashed #ccc; }
-          .total-box { text-align: right; font-size: 15px; font-weight: 900; margin-top: 25px; color: #0f766e; border-top: 2px solid #0f766e; padding-top: 10px; }
+          .total-box { text-align: right; font-size: 13px; font-weight: bold; margin-top: 25px; border-top: 2px solid #0f766e; padding-top: 10px; }
+          .highlight-box { color: #0f766e; font-size: 16px; font-weight: 900; }
         </style>
       </head>
       <body>
@@ -429,10 +380,11 @@ export default function TsbDashboard() {
           <tbody>${procsHtml}</tbody>
         </table>
         <div class="total-box">
-          VALOR TOTAL DO ATENDIMENTO: R$ ${Number(at.valor_total).toFixed(2).replace('.', ',')}
+          <p>VALOR TOTAL BRUTO: R$ ${Number(at.valor_total).toFixed(2).replace('.', ',')}</p>
+          <p class="highlight-box">COMISSÃO DA ALINE (42,5%): R$ ${comissao.toFixed(2).replace('.', ',')}</p>
         </div>
-        <div style="margin-top: 40px; border-top: 1px solid #eee; padding-top: 15px;">
-          <p><strong>Descrição Detalhada do Caso:</strong></p>
+        <div style="margin-top: 30px; border-top: 1px solid #eee; padding-top: 15px;">
+          <p><strong>Observações Clínicas:</strong></p>
           <p style="background: #fafafa; padding: 10px; border-radius: 6px; border: 1px solid #eee;">${at.descricao || 'Nenhuma observação adicional.'}</p>
         </div>
       </body>
@@ -444,25 +396,29 @@ export default function TsbDashboard() {
     setTimeout(() => { printWindow.print(); printWindow.close(); }, 250);
   };
 
+  // Exportação do Relatório Geral em PDF com Comissão
   const exportarRelatorioFinanceiroGeral = () => {
     const printWindow = window.open('', '_blank');
     if (!printWindow) return toast.error("Permita pop-ups no navegador.");
 
     const dataEmissao = new Date().toLocaleDateString('pt-BR');
     const totalPeriodo = atendimentos.reduce((acc, curr) => acc + Number(curr.valor_total), 0);
+    const comissaoTotal = totalPeriodo * 0.425;
     let rowsHtml = '';
 
     atendimentos.forEach((at, idx) => {
       const dataFormatada = new Date(at.data + "T00:00:00").toLocaleDateString('pt-BR');
       const procsTexto = at.procedimentos?.map((p: any) => `${p.name} (R$ ${Number(p.value).toFixed(0)})`).join(', ') || '-';
-      
+      const comissaoAt = Number(at.valor_total) * 0.425;
+
       rowsHtml += `
         <tr>
           <td class="center" style="color:#666;">${String(idx + 1).padStart(2, '0')}</td>
           <td>${dataFormatada}</td>
           <td><strong>${at.paciente_nome.toUpperCase()}</strong></td>
           <td style="color:#444;">${procsTexto}</td>
-          <td class="right" style="font-weight: bold; color: #0f766e;">R$ ${Number(at.valor_total).toFixed(2).replace('.', ',')}</td>
+          <td class="right" style="font-weight: bold;">R$ ${Number(at.valor_total).toFixed(2).replace('.', ',')}</td>
+          <td class="right" style="font-weight: bold; color: #0f766e;">R$ ${comissaoAt.toFixed(2).replace('.', ',')}</td>
         </tr>
       `;
     });
@@ -483,8 +439,9 @@ export default function TsbDashboard() {
           th { background-color: #fafafa; border-top: 1px solid #111; border-bottom: 2px solid #111; padding: 8px; text-align: left; font-size: 10px; text-transform: uppercase; font-weight: bold; color: #555; }
           td { padding: 9px 8px; border-bottom: 1px dashed #e5e5e7; }
           .center { text-align: center; } .right { text-align: right; }
-          .summary-box { width: 260px; float: right; margin-top: 20px; }
-          .summary-total { display: flex; justify-content: space-between; font-weight: 900; font-size: 15px; border-top: 2px solid #0f766e; padding-top: 8px; color: #0f766e; }
+          .summary-box { width: 300px; float: right; margin-top: 20px; background: #f0fdfa; border: 1px solid #ccfbf1; padding: 15px; border-radius: 8px; }
+          .summary-item { display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 12px; }
+          .summary-total { display: flex; justify-content: space-between; font-weight: 900; font-size: 15px; border-top: 2px solid #0f766e; padding-top: 8px; color: #0f766e; margin-top: 8px; }
           .clear { clear: both; }
         </style>
       </head>
@@ -497,27 +454,32 @@ export default function TsbDashboard() {
           <div style="text-align: right; font-size: 10px; color: #666; font-weight: bold;">EMISSÃO: ${dataEmissao}</div>
         </div>
         <div class="info">
-          <p><strong>FILTRO DE PERÍODO:</strong> MÊS / HISTÓRICO (${filtroFinancas.toUpperCase()})</p>
-          <p><strong>QUANTIDADE DE PROCEDIMENTOS DO PERÍODO:</strong> ${atendimentos.length} atendimentos</p>
+          <p><strong>FILTRO DE PERÍODO:</strong> (${filtroFinancas.toUpperCase()})</p>
+          <p><strong>QUANTIDADE DE ATENDIMENTOS:</strong> ${atendimentos.length} casos</p>
         </div>
         <table>
           <thead>
             <tr>
               <th class="center" style="width: 5%;">#</th>
               <th style="width: 12%;">Data</th>
-              <th style="width: 25%;">Paciente</th>
-              <th style="width: 43%;">Procedimentos Compilados</th>
-              <th class="right" style="width: 15%;">Valor Total</th>
+              <th style="width: 23%;">Paciente</th>
+              <th style="width: 35%;">Procedimentos</th>
+              <th class="right" style="width: 12%;">Valor Bruto</th>
+              <th class="right" style="width: 13%;">Comissão (42,5%)</th>
             </tr>
           </thead>
           <tbody>
-            ${rowsHtml || '<tr><td colSpan="5" class="center">Nenhum atendimento no período.</td></tr>'}
+            ${rowsHtml || '<tr><td colSpan="6" class="center">Nenhum atendimento no período.</td></tr>'}
           </tbody>
         </table>
         <div class="summary-box">
-          <div class="summary-total">
-            <span>FATURAMENTO TOTAL:</span>
+          <div class="summary-item">
+            <span>FATURAMENTO BRUTO:</span>
             <span>R$ ${totalPeriodo.toFixed(2).replace('.', ',')}</span>
+          </div>
+          <div class="summary-total">
+            <span>COMISSÃO ALINE (42,5%):</span>
+            <span>R$ ${comissaoTotal.toFixed(2).replace('.', ',')}</span>
           </div>
         </div>
         <div class="clear"></div>
@@ -532,12 +494,15 @@ export default function TsbDashboard() {
 
   const inputBaseStyle = "bg-neutral-900 border-neutral-800 text-white placeholder-neutral-600 focus-visible:ring-1 focus-visible:ring-teal-500/50";
 
+  const totalFaturamento = atendimentos.reduce((acc, curr) => acc + (curr.valor_total || 0), 0);
+  const totalComissaoAline = totalFaturamento * 0.425;
+
   if (loading) return <div className="min-h-screen bg-transparent p-6 text-teal-500 font-bold text-center py-20">Carregando Clinic TSB...</div>;
 
   return (
     <div className="min-h-screen bg-transparent p-6 pb-24">
       
-      {/* MODAL: REGISTRAR / EDITAR ATENDIMENTO FINANCEIRO TSB (ABA 2) */}
+      {/* MODAL: REGISTRAR / EDITAR ATENDIMENTO FINANCEIRO (ABA 2) */}
       {isAtendimentoModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
           <div className="bg-neutral-900 border border-neutral-800 p-6 rounded-2xl w-full max-w-lg shadow-2xl max-h-[90vh] overflow-y-auto custom-scrollbar relative">
@@ -595,11 +560,16 @@ export default function TsbDashboard() {
               </div>
 
               <div className="space-y-3 border-t border-neutral-800 pt-4">
-                <Label className="text-xs font-bold text-teal-400 uppercase tracking-wider block mb-1">Procedimentos e Valores Fixos</Label>
+                <Label className="text-xs font-bold text-teal-400 uppercase tracking-wider block mb-1">Procedimentos Realizados</Label>
                 {atendimentoForm.procedimentos.map((proc, idx) => (
                   <div key={proc.name} className="flex items-center justify-between gap-4 p-2 bg-neutral-950/40 border border-neutral-800/60 rounded-lg">
                     <label className="flex items-center gap-3 cursor-pointer text-sm font-bold text-white uppercase flex-1">
-                      <input type="checkbox" checked={proc.checked} onChange={e => handleCheckboxMudanca(idx, e.target.checked)} className="w-4 h-4 rounded border-neutral-700 bg-neutral-900 text-teal-600 focus:ring-teal-500" />
+                      <input 
+                        type="checkbox" 
+                        checked={proc.checked} 
+                        onChange={e => handleCheckboxMudanca(idx, e.target.checked)} 
+                        className="w-4 h-4 rounded border-neutral-700 bg-neutral-900 text-teal-600 focus:ring-teal-500" 
+                      />
                       {proc.name}
                     </label>
                     {proc.checked && (
@@ -626,7 +596,7 @@ export default function TsbDashboard() {
 
               <div className="space-y-2 border-t border-neutral-800 pt-4">
                 <Label className="text-xs font-bold text-neutral-400 uppercase">Descrição / Observações do Caso</Label>
-                <Textarea value={atendimentoForm.descricao} onChange={e => setAtendimentoForm({...atendimentoForm, descricao: e.target.value})} rows={3} className={inputBaseStyle} placeholder="Descreva os detalhes clínicos do atendimento..." />
+                <Textarea value={atendimentoForm.descricao} onChange={e => setAtendimentoForm({...atendimentoForm, descricao: e.target.value})} rows={3} className={inputBaseStyle} placeholder="Descreva os detalhes clínicos..." />
               </div>
 
               <Button type="submit" className="w-full bg-teal-600 hover:bg-teal-700 text-white font-black mt-4 uppercase">
@@ -637,57 +607,19 @@ export default function TsbDashboard() {
         </div>
       )}
 
-
-      {/* MODAL: ADICIONAR NOVO PACIENTE RECORRÊNCIA COM PROCEDIMENTOS DA ABA 1 */}
+      {/* MODAL: NOVO CLIENTE (ABA 1) - APENAS DADOS CADASTRAIS (SEM DADOS FINANCEIROS) */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-          <div className="bg-neutral-900 border border-neutral-800 p-6 rounded-2xl w-full max-w-md relative shadow-2xl max-h-[90vh] overflow-y-auto custom-scrollbar">
-            <button onClick={() => setIsModalOpen(false)} className="absolute top-4 right-4 text-neutral-500"><X className="w-5 h-5"/></button>
-            <h3 className="text-xl font-black text-white uppercase mb-6 flex items-center gap-2"><Users className="w-5 h-5 text-teal-400"/> Novo Paciente Retorno</h3>
+          <div className="bg-neutral-900 border border-neutral-800 p-6 rounded-2xl w-full max-w-md relative shadow-2xl">
+            <button onClick={() => setIsModalOpen(false)} className="absolute top-4 right-4 text-neutral-500 hover:text-white"><X className="w-5 h-5"/></button>
+            <h3 className="text-xl font-black text-white uppercase mb-6 flex items-center gap-2"><Users className="w-5 h-5 text-teal-400"/> Novo Cliente Retorno</h3>
             <form onSubmit={handleSavePatient} className="space-y-4">
-              <div className="space-y-2"><Label className="text-xs font-bold text-neutral-400 uppercase">Nome Completo *</Label><Input required value={patientForm.nome} onChange={e=>setPatientForm({...patientForm, nome:e.target.value})} className={inputBaseStyle} placeholder="Nome" /></div>
+              <div className="space-y-2"><Label className="text-xs font-bold text-neutral-400 uppercase">Nome Completo *</Label><Input required value={patientForm.nome} onChange={e=>setPatientForm({...patientForm, nome:e.target.value})} className={inputBaseStyle} placeholder="Nome do Cliente" /></div>
               <div className="space-y-2"><Label className="text-xs font-bold text-neutral-400 uppercase">Telefone</Label><Input value={patientForm.telefone} onChange={e=>setPatientForm({...patientForm, telefone:e.target.value})} className={inputBaseStyle} placeholder="Telefone" /></div>
               
-              <div className="space-y-3 border-t border-neutral-800 pt-4">
-                <Label className="text-xs font-bold text-teal-400 uppercase tracking-wider block mb-1">Procedimentos da Visita Inicial</Label>
-                {patientForm.procedimentos.map((proc, idx) => (
-                  <div key={proc.name} className="flex items-center justify-between gap-4 p-2 bg-neutral-950/40 border border-neutral-800/60 rounded-lg">
-                    <label className="flex items-center gap-3 cursor-pointer text-sm font-bold text-white uppercase flex-1">
-                      <input type="checkbox" checked={proc.checked} onChange={e => handlePatientCheckbox(idx, e.target.checked)} className="w-4 h-4 rounded border-neutral-700 bg-neutral-900 text-teal-600 focus:ring-teal-500" />
-                      {proc.name}
-                    </label>
-                    {proc.checked && (
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs text-neutral-500">R$</span>
-                        <Input type="number" step="0.01" value={proc.value} onChange={e => handlePatientValorProc(idx, e.target.value)} className="w-24 h-8 text-xs text-right font-black text-teal-400 bg-neutral-900 border-neutral-800" />
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-
-              <div className="space-y-3 border-t border-neutral-800 pt-4">
-                <Label className="text-xs font-bold text-amber-400 uppercase tracking-wider block">Adicionar Serviço Extra Customizado</Label>
-                <div className="grid grid-cols-3 gap-2">
-                  <div className="col-span-2">
-                    <Input value={patientForm.extra_nome} onChange={e => setPatientForm({...patientForm, extra_nome: e.target.value})} className={inputBaseStyle} placeholder="Nome do extra..." />
-                  </div>
-                  <div>
-                    <Input type="number" step="0.01" value={patientForm.extra_valor} onChange={e => setPatientForm({...patientForm, extra_valor: e.target.value})} className={inputBaseStyle} placeholder="R$ 0,00" />
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-2 border-t border-neutral-800 pt-4">
-                <Label className="text-xs font-bold text-neutral-400 uppercase">Procedimento Agendado (Próxima Recorrência)</Label>
-                <Select value={patientForm.procedimento} onValueChange={v=>setPatientForm({...patientForm, procedimento:v})}>
-                  <SelectTrigger className={inputBaseStyle}><SelectValue /></SelectTrigger>
-                  <SelectContent className="bg-neutral-900 border-neutral-800 text-white">
-                    {LISTA_PROCEDIMENTOS_PADRAO.map(p => (
-                      <SelectItem key={p.name} value={p.name}>{p.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+              <div className="space-y-2">
+                <Label className="text-xs font-bold text-neutral-400 uppercase">Procedimento Vinculado</Label>
+                <Input value={patientForm.procedimento} onChange={e=>setPatientForm({...patientForm, procedimento:e.target.value})} className={inputBaseStyle} placeholder="Ex: Limpeza Profissional" />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -695,27 +627,27 @@ export default function TsbDashboard() {
                   <Label className="text-xs font-bold text-neutral-400 uppercase">Recorrência (Meses)</Label>
                   <Input 
                     type="number" 
-                    min="0"
+                    min="1"
                     value={patientForm.recorrencia_meses} 
                     onChange={e => setPatientForm({...patientForm, recorrencia_meses: e.target.value})} 
                     className={inputBaseStyle} 
                     placeholder="Ex: 6"
                   />
                 </div>
-                <div className="space-y-2"><Label className="text-xs font-bold text-neutral-400 uppercase">Data da Visita *</Label><Input type="date" required value={patientForm.ultimo_atendimento} onChange={e=>setPatientForm({...patientForm, ultimo_atendimento:e.target.value})} className={inputBaseStyle} /></div>
+                <div className="space-y-2"><Label className="text-xs font-bold text-neutral-400 uppercase">Último Atendimento *</Label><Input type="date" required value={patientForm.ultimo_atendimento} onChange={e=>setPatientForm({...patientForm, ultimo_atendimento:e.target.value})} className={inputBaseStyle} /></div>
               </div>
-              <Button type="submit" className="w-full bg-teal-600 hover:bg-teal-700 text-white font-black mt-4 uppercase">Salvar e Sincronizar</Button>
+              <Button type="submit" className="w-full bg-teal-600 hover:bg-teal-700 text-white font-black mt-4 uppercase">Salvar Cliente</Button>
             </form>
           </div>
         </div>
       )}
 
-      {/* MODAL: EDITAR PACIENTE RECORRÊNCIA E HISTÓRICO COM MULTIPLOS PROCEDIMENTOS DA ABA 1 */}
+      {/* MODAL: EDITAR CLIENTE (ABA 1) - APENAS DADOS CADASTRAIS */}
       {isEditPatientModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-          <div className="bg-neutral-900 border border-neutral-800 p-6 rounded-2xl w-full max-w-md relative shadow-2xl max-h-[90vh] overflow-y-auto custom-scrollbar">
+          <div className="bg-neutral-900 border border-neutral-800 p-6 rounded-2xl w-full max-w-md relative shadow-2xl">
             <button onClick={() => { setIsEditPatientModalOpen(false); setEditingPatientId(null); }} className="absolute top-4 right-4 text-neutral-500 hover:text-white"><X className="w-5 h-5"/></button>
-            <h3 className="text-xl font-black text-white uppercase mb-6 flex items-center gap-2"><Pencil className="w-5 h-5 text-teal-400"/> Editar Cadastro & Histórico</h3>
+            <h3 className="text-xl font-black text-white uppercase mb-6 flex items-center gap-2"><Pencil className="w-5 h-5 text-teal-400"/> Editar Cadastro do Cliente</h3>
             <form onSubmit={handleUpdatePatientSubmit} className="space-y-4">
               <div className="space-y-2">
                 <Label className="text-xs font-bold text-neutral-400 uppercase">Nome Completo *</Label>
@@ -725,48 +657,10 @@ export default function TsbDashboard() {
                 <Label className="text-xs font-bold text-neutral-400 uppercase">Telefone</Label>
                 <Input value={patientForm.telefone} onChange={e=>setPatientForm({...patientForm, telefone:e.target.value})} className={inputBaseStyle} />
               </div>
-              
-              <div className="space-y-3 border-t border-neutral-800 pt-4">
-                <Label className="text-xs font-bold text-teal-400 uppercase tracking-wider block mb-1">Procedimentos da Última Visita</Label>
-                <p className="text-[10px] text-neutral-500 mb-2">Marque o que foi feito. Isso sincronizará com a Aba de Fechamento Financeiro automaticamente.</p>
-                {patientForm.procedimentos.map((proc, idx) => (
-                  <div key={proc.name} className="flex items-center justify-between gap-4 p-2 bg-neutral-950/40 border border-neutral-800/60 rounded-lg">
-                    <label className="flex items-center gap-3 cursor-pointer text-sm font-bold text-white uppercase flex-1">
-                      <input type="checkbox" checked={proc.checked} onChange={e => handlePatientCheckbox(idx, e.target.checked)} className="w-4 h-4 rounded border-neutral-700 bg-neutral-900 text-teal-600 focus:ring-teal-500" />
-                      {proc.name}
-                    </label>
-                    {proc.checked && (
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs text-neutral-500">R$</span>
-                        <Input type="number" step="0.01" value={proc.value} onChange={e => handlePatientValorProc(idx, e.target.value)} className="w-24 h-8 text-xs text-right font-black text-teal-400 bg-neutral-900 border-neutral-800" />
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
 
-              <div className="space-y-3 border-t border-neutral-800 pt-4">
-                <Label className="text-xs font-bold text-amber-400 uppercase tracking-wider block">Adicionar Serviço Extra Customizado</Label>
-                <div className="grid grid-cols-3 gap-2">
-                  <div className="col-span-2">
-                    <Input value={patientForm.extra_nome} onChange={e => setPatientForm({...patientForm, extra_nome: e.target.value})} className={inputBaseStyle} placeholder="Nome do extra..." />
-                  </div>
-                  <div>
-                    <Input type="number" step="0.01" value={patientForm.extra_valor} onChange={e => setPatientForm({...patientForm, extra_valor: e.target.value})} className={inputBaseStyle} placeholder="R$ 0,00" />
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-2 border-t border-neutral-800 pt-4">
-                <Label className="text-xs font-bold text-neutral-400 uppercase">Procedimento Agendado (Próxima Recorrência)</Label>
-                <Select value={patientForm.procedimento} onValueChange={v=>setPatientForm({...patientForm, procedimento:v})}>
-                  <SelectTrigger className={inputBaseStyle}><SelectValue /></SelectTrigger>
-                  <SelectContent className="bg-neutral-900 border-neutral-800 text-white">
-                    {LISTA_PROCEDIMENTOS_PADRAO.map(p => (
-                      <SelectItem key={p.name} value={p.name}>{p.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+              <div className="space-y-2">
+                <Label className="text-xs font-bold text-neutral-400 uppercase">Procedimento Vinculado</Label>
+                <Input value={patientForm.procedimento} onChange={e=>setPatientForm({...patientForm, procedimento:e.target.value})} className={inputBaseStyle} />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -774,15 +668,15 @@ export default function TsbDashboard() {
                   <Label className="text-xs font-bold text-neutral-400 uppercase">Recorrência (Meses)</Label>
                   <Input 
                     type="number" 
-                    min="0"
+                    min="1"
                     value={patientForm.recorrencia_meses} 
                     onChange={e => setPatientForm({...patientForm, recorrencia_meses: e.target.value})} 
                     className={inputBaseStyle} 
                   />
                 </div>
-                <div className="space-y-2"><Label className="text-xs font-bold text-neutral-400 uppercase">Data da Última Visita *</Label><Input type="date" required value={patientForm.ultimo_atendimento} onChange={e=>setPatientForm({...patientForm, ultimo_atendimento:e.target.value})} className={inputBaseStyle} /></div>
+                <div className="space-y-2"><Label className="text-xs font-bold text-neutral-400 uppercase">Data do Último Atendimento *</Label><Input type="date" required value={patientForm.ultimo_atendimento} onChange={e=>setPatientForm({...patientForm, ultimo_atendimento:e.target.value})} className={inputBaseStyle} /></div>
               </div>
-              <Button type="submit" className="w-full bg-teal-600 hover:bg-teal-700 text-white font-black mt-4 uppercase">Salvar e Sincronizar</Button>
+              <Button type="submit" className="w-full bg-teal-600 hover:bg-teal-700 text-white font-black mt-4 uppercase">Salvar Alterações</Button>
             </form>
           </div>
         </div>
@@ -794,7 +688,7 @@ export default function TsbDashboard() {
           <h1 className="text-3xl font-black text-white uppercase tracking-tight flex items-center gap-3">
             <Syringe className="w-8 h-8 text-teal-400"/> CLINIC TSB
           </h1>
-          <p className="text-neutral-400 text-sm mt-2">Controle de retornos preventivos e faturamento de procedimentos</p>
+          <p className="text-neutral-400 text-sm mt-2">Controle de retornos preventivos e faturamento de procedimentos TSB</p>
         </div>
         
         <div className="flex flex-wrap gap-3">
@@ -803,7 +697,7 @@ export default function TsbDashboard() {
             setAtendimentoForm({
               paciente_selecionado: "novo", paciente_nome: "", paciente_telefone: "",
               data: new Date().toISOString().split('T')[0], descricao: "", proximo_retorno_meses: "6",
-              procedimentos: LISTA_PROCEDIMENTOS_PADRAO.map(p => ({ name: p.name, checked: false, value: p.price.toString() })),
+              procedimentos: getFreshProcedures(),
               extra_nome: "", extra_valor: ""
             });
             setIsAtendimentoModalOpen(true);
@@ -813,14 +707,13 @@ export default function TsbDashboard() {
           <Button onClick={() => {
             setPatientForm({
               nome: "", telefone: "", procedimento: defaultProcedure,
-              recorrencia_meses: "6", data_inicio: new Date().toISOString().split('T')[0],
-              ultimo_atendimento: new Date().toISOString().split('T')[0], proximo_atendimento: "",
-              procedimentos: LISTA_PROCEDIMENTOS_PADRAO.map(p => ({ name: p.name, checked: false, value: p.price.toString() })),
-              extra_nome: "", extra_valor: ""
+              recorrencia_meses: "6",
+              ultimo_atendimento: new Date().toISOString().split('T')[0],
+              proximo_atendimento: ""
             });
             setIsModalOpen(true);
           }} className="bg-teal-600 hover:bg-teal-700 text-white font-bold h-11">
-            <Plus className="w-4 h-4 mr-2" /> Novo Paciente Retorno
+            <Plus className="w-4 h-4 mr-2" /> Cadastrar Cliente Retorno
           </Button>
           <Button onClick={handleLogout} variant="ghost" className="text-neutral-500 hover:text-white border border-neutral-800 h-11">
             <LogOut className="w-4 h-4" />
@@ -838,7 +731,9 @@ export default function TsbDashboard() {
         </button>
       </div>
 
-      {/* ABA 1: RECORRÊNCIAS */}
+      {/* ========================================================================= */}
+      {/* ABA 1: RECORRÊNCIAS DE CLIENTES */}
+      {/* ========================================================================= */}
       {activeTab === "recorrencias" && (
         <>
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
@@ -848,7 +743,7 @@ export default function TsbDashboard() {
                   <Users className="w-6 h-6 text-teal-400"/>
                 </div>
                 <div>
-                  <p className="text-neutral-400 text-xs font-bold uppercase tracking-widest">Pacientes Cadastrados</p>
+                  <p className="text-neutral-400 text-xs font-bold uppercase tracking-widest">Clientes Cadastrados</p>
                   <p className="text-3xl font-black text-white mt-1">{patients.length}</p>
                 </div>
               </div>
@@ -879,7 +774,7 @@ export default function TsbDashboard() {
                 </div>
                 <div className="grid grid-cols-2 gap-2 w-full">
                   <div>
-                    <span className="text-[10px] text-neutral-500 font-bold uppercase block tracking-wider">Total Geral</span>
+                    <span className="text-[10px] text-neutral-500 font-bold uppercase block tracking-wider">Total Clientes</span>
                     <span className="text-xl font-black text-white">{patients.length}</span>
                   </div>
                   <div>
@@ -899,11 +794,10 @@ export default function TsbDashboard() {
               <table className="w-full text-left">
                 <thead className="bg-neutral-950 border-b border-neutral-800">
                   <tr>
-                    <th className="p-4 text-xs font-bold text-neutral-500 uppercase">Paciente</th>
+                    <th className="p-4 text-xs font-bold text-neutral-500 uppercase">Cliente</th>
                     <th className="p-4 text-xs font-bold text-neutral-500 uppercase">Telefone</th>
+                    <th className="p-4 text-xs font-bold text-neutral-500 uppercase">Procedimento Vinculado</th>
                     <th className="p-4 text-xs font-bold text-neutral-500 uppercase">Última Visita</th>
-                    <th className="p-4 text-xs font-bold text-neutral-500 uppercase">Histórico</th>
-                    <th className="p-4 text-xs font-bold text-neutral-500 uppercase text-right">Valor Pago</th>
                     <th className="p-4 text-xs font-bold text-neutral-500 uppercase">Próximo Retorno</th>
                     <th className="p-4 text-xs font-bold text-neutral-500 uppercase text-center w-36">Ações</th>
                   </tr>
@@ -916,23 +810,22 @@ export default function TsbDashboard() {
                       <tr key={p.id} className="hover:bg-neutral-800/20 transition-colors">
                         <td className="p-4 text-white font-bold text-sm uppercase">{p.nome}</td>
                         <td className="p-4 text-neutral-400 text-sm">{p.telefone || "-"}</td>
+                        <td className="p-4 text-neutral-300 text-sm uppercase">{p.procedimento || "Limpeza Profissional"}</td>
                         <td className="p-4 text-neutral-400 text-sm">{new Date(p.ultimo_atendimento + "T00:00:00").toLocaleDateString('pt-BR')}</td>
-                        <td className="p-4 text-neutral-300 text-sm uppercase max-w-[150px] truncate" title={p.ultimo_procedimento || "Não registrado"}>{p.ultimo_procedimento || "Não registrado"}</td>
-                        <td className="p-4 text-emerald-400 font-bold text-sm text-right">R$ {Number(p.ultimo_valor || 0).toFixed(2).replace('.', ',')}</td>
                         <td className="p-4 text-sm font-medium">
                           <span className={isAtrasado ? "text-red-400 font-bold" : "text-emerald-400"}>
                             {proxDate.toLocaleDateString('pt-BR')} {isAtrasado && "⚠️"}
                           </span>
                         </td>
                         <td className="p-4 text-center space-x-1">
-                          <Button onClick={() => handleOpenEditPatientModal(p)} size="icon" variant="ghost" className="h-8 w-8 text-neutral-400 hover:text-white" title="Editar Cadastro e Histórico"><Pencil className="w-4 h-4"/></Button>
+                          <Button onClick={() => handleOpenEditPatientModal(p)} size="icon" variant="ghost" className="h-8 w-8 text-neutral-400 hover:text-white" title="Editar Cliente"><Pencil className="w-4 h-4"/></Button>
                           <Button onClick={() => handleRenew(p)} size="icon" variant="ghost" className="h-8 w-8 text-teal-600 hover:bg-teal-50" title="Confirmar Retorno do Paciente"><RefreshCw className="w-4 h-4"/></Button>
                           <Button onClick={() => handleDelete(p.id)} size="icon" variant="ghost" className="h-8 w-8 text-red-500 hover:bg-red-50" title="Apagar Paciente"><Trash2 className="w-4 h-4"/></Button>
                         </td>
                       </tr>
                     );
                   })}
-                  {patients.length === 0 && <tr><td colSpan={7} className="p-12 text-center text-neutral-500 text-sm">Nenhum paciente cadastrado no Clinic TSB ainda.</td></tr>}
+                  {patients.length === 0 && <tr><td colSpan={6} className="p-12 text-center text-neutral-500 text-sm">Nenhum cliente cadastrado no Clinic TSB ainda.</td></tr>}
                 </tbody>
               </table>
             </div>
@@ -940,21 +833,35 @@ export default function TsbDashboard() {
         </>
       )}
 
-      {/* ABA 2: FECHAMENTO FINANCEIRO */}
+      {/* ========================================================================= */}
+      {/* ABA 2: FECHAMENTO FINANCEIRO & RELATÓRIOS (COM COMISSÃO E TABELA DE CLIENTES) */}
+      {/* ========================================================================= */}
       {activeTab === "financas" && (
         <>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
             <Card className="bg-neutral-900 border-neutral-800 p-6 shadow-xl relative overflow-hidden">
               <div className="flex items-center gap-4">
                 <div className="bg-emerald-500/10 p-4 rounded-xl border border-emerald-500/20 shrink-0">
                   <DollarSign className="w-6 h-6 text-emerald-400"/>
                 </div>
                 <div>
-                  <span className="text-xs font-bold uppercase tracking-widest text-neutral-400 block">Faturamento do Período</span>
+                  <span className="text-xs font-bold uppercase tracking-widest text-neutral-400 block">Faturamento Bruto</span>
                   <span className="text-3xl font-black text-emerald-400 mt-1 block">
-                    {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(
-                      atendimentos.reduce((acc, curr) => acc + (curr.valor_total || 0), 0)
-                    )}
+                    {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(totalFaturamento)}
+                  </span>
+                </div>
+              </div>
+            </Card>
+
+            <Card className="bg-neutral-900 border-neutral-800 p-6 shadow-xl relative overflow-hidden">
+              <div className="flex items-center gap-4">
+                <div className="bg-teal-500/10 p-4 rounded-xl border border-teal-500/20 shrink-0">
+                  <Percent className="w-6 h-6 text-teal-400"/>
+                </div>
+                <div>
+                  <span className="text-xs font-bold uppercase tracking-widest text-neutral-400 block">Comissão Aline (42,5%)</span>
+                  <span className="text-3xl font-black text-teal-400 mt-1 block">
+                    {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(totalComissaoAline)}
                   </span>
                 </div>
               </div>
@@ -962,8 +869,8 @@ export default function TsbDashboard() {
 
             <Card className="bg-neutral-900 border-neutral-800 p-6 shadow-xl">
               <div className="flex items-center gap-4">
-                <div className="bg-teal-500/10 p-4 rounded-xl border border-teal-500/20 shrink-0">
-                  <Receipt className="w-6 h-6 text-teal-400"/>
+                <div className="bg-neutral-800 p-4 rounded-xl border border-neutral-700 shrink-0">
+                  <Receipt className="w-6 h-6 text-neutral-400"/>
                 </div>
                 <div>
                   <span className="text-xs font-bold uppercase tracking-widest text-neutral-400 block">Atendimentos Efetuados</span>
@@ -998,50 +905,104 @@ export default function TsbDashboard() {
             </Button>
           </div>
 
-          <Card className="bg-neutral-900 border-neutral-800 overflow-hidden shadow-xl">
-            <div className="p-6 border-b border-neutral-800"><h2 className="text-sm font-black text-teal-400 uppercase tracking-widest">Relatório de Atendimentos Clínicos Efetuados</h2></div>
+          {/* TABELA 1: ATENDIMENTOS REALIZADOS (FINANCEIRO) */}
+          <Card className="bg-neutral-900 border-neutral-800 overflow-hidden shadow-xl mb-10">
+            <div className="p-6 border-b border-neutral-800 flex justify-between items-center">
+              <h2 className="text-sm font-black text-teal-400 uppercase tracking-widest">Relatório de Atendimentos Clínicos Efetuados</h2>
+              <span className="text-xs text-neutral-500 font-bold uppercase">{atendimentos.length} Registros</span>
+            </div>
             <div className="overflow-x-auto">
               <table className="w-full text-left">
                 <thead className="bg-neutral-950 border-b border-neutral-800">
                   <tr>
                     <th className="p-4 text-xs font-bold text-neutral-500 uppercase">Data</th>
-                    <th className="p-4 text-xs font-bold text-neutral-500 uppercase">Paciente</th>
+                    <th className="p-4 text-xs font-bold text-neutral-500 uppercase">Paciente / Cliente</th>
                     <th className="p-4 text-xs font-bold text-neutral-500 uppercase">Procedimentos Realizados</th>
-                    <th className="p-4 text-xs font-bold text-neutral-500 uppercase text-right">Valor Total</th>
+                    <th className="p-4 text-xs font-bold text-neutral-500 uppercase text-right">Valor Total Bruto</th>
+                    <th className="p-4 text-xs font-bold text-teal-400 uppercase text-right">Comissão (42,5%)</th>
                     <th className="p-4 text-xs font-bold text-neutral-500 uppercase text-center w-36">Ações</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-neutral-800/50">
-                  {atendimentos.map((at) => (
-                    <tr key={at.id} className="hover:bg-neutral-800/20 transition-colors">
-                      <td className="p-4 text-xs text-neutral-400">
-                        {new Date(at.data + "T00:00:00").toLocaleDateString('pt-BR')}
-                      </td>
-                      <td className="p-4 text-sm font-bold text-white uppercase">
-                        {at.paciente_nome}
-                        {at.paciente_telefone && <span className="block text-[10px] text-neutral-500 font-normal">📞 {at.paciente_telefone}</span>}
-                      </td>
-                      <td className="p-4 text-xs text-neutral-300">
-                        <div className="flex flex-wrap gap-1">
-                          {at.procedimentos?.map((p: any) => (
-                            <span key={p.name} className="bg-neutral-950 px-2 py-0.5 rounded border border-neutral-800 font-medium text-[11px] uppercase text-neutral-300">
-                              {p.name} (R$ {Number(p.value).toFixed(0)})
-                            </span>
-                          ))}
-                        </div>
-                      </td>
-                      <td className="p-4 text-sm font-black text-teal-400 text-right whitespace-nowrap">
-                        R$ {Number(at.valor_total).toFixed(2).replace('.', ',')}
-                      </td>
-                      <td className="p-4 text-center space-x-1">
-                        <Button size="icon" variant="ghost" onClick={() => handlePrintAtendimento(at)} className="w-8 h-8 text-neutral-400 hover:text-white" title="Imprimir Recibo / Extrato"><Printer className="w-4 h-4"/></Button>
-                        <Button size="icon" variant="ghost" onClick={() => handleEditAtendimento(at)} className="w-8 h-8 text-neutral-400 hover:text-white" title="Editar Atendimento"><Pencil className="w-4 h-4"/></Button>
-                        <Button size="icon" variant="ghost" onClick={() => handleDeleteAtendimento(at.id)} className="w-8 h-8 text-neutral-400 hover:text-red-500 hover:bg-red-500/10" title="Excluir Atendimento"><Trash2 className="w-4 h-4"/></Button>
-                      </td>
-                    </tr>
-                  ))}
+                  {atendimentos.map((at) => {
+                    const comissaoAline = Number(at.valor_total || 0) * 0.425;
+                    return (
+                      <tr key={at.id} className="hover:bg-neutral-800/20 transition-colors">
+                        <td className="p-4 text-xs text-neutral-400">
+                          {new Date(at.data + "T00:00:00").toLocaleDateString('pt-BR')}
+                        </td>
+                        <td className="p-4 text-sm font-bold text-white uppercase">
+                          {at.paciente_nome}
+                          {at.paciente_telefone && <span className="block text-[10px] text-neutral-500 font-normal">📞 {at.paciente_telefone}</span>}
+                        </td>
+                        <td className="p-4 text-xs text-neutral-300">
+                          <div className="flex flex-wrap gap-1">
+                            {at.procedimentos?.map((p: any) => (
+                              <span key={p.name} className="bg-neutral-950 px-2 py-0.5 rounded border border-neutral-800 font-medium text-[11px] uppercase text-neutral-300">
+                                {p.name} (R$ {Number(p.value).toFixed(0)})
+                              </span>
+                            ))}
+                          </div>
+                        </td>
+                        <td className="p-4 text-sm font-black text-white text-right whitespace-nowrap">
+                          R$ {Number(at.valor_total).toFixed(2).replace('.', ',')}
+                        </td>
+                        <td className="p-4 text-sm font-black text-teal-400 text-right whitespace-nowrap">
+                          R$ {comissaoAline.toFixed(2).replace('.', ',')}
+                        </td>
+                        <td className="p-4 text-center space-x-1">
+                          <Button size="icon" variant="ghost" onClick={() => handlePrintAtendimento(at)} className="w-8 h-8 text-neutral-400 hover:text-white" title="Imprimir Recibo / Extrato"><Printer className="w-4 h-4"/></Button>
+                          <Button size="icon" variant="ghost" onClick={() => handleEditAtendimento(at)} className="w-8 h-8 text-neutral-400 hover:text-white" title="Editar Atendimento"><Pencil className="w-4 h-4"/></Button>
+                          <Button size="icon" variant="ghost" onClick={() => handleDeleteAtendimento(at.id)} className="w-8 h-8 text-neutral-400 hover:text-red-500 hover:bg-red-500/10" title="Excluir Atendimento"><Trash2 className="w-4 h-4"/></Button>
+                        </td>
+                      </tr>
+                    );
+                  })}
                   {atendimentos.length === 0 && (
-                    <tr><td colSpan={5} className="p-12 text-center text-neutral-500 text-sm">Nenhum atendimento financeiro encontrado no período selecionado.</td></tr>
+                    <tr><td colSpan={6} className="p-12 text-center text-neutral-500 text-sm">Nenhum atendimento financeiro encontrado no período selecionado.</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+
+          {/* TABELA 2: LISTA SEPARADA DE CLIENTES CADASTRAIS ABAIXO */}
+          <Card className="bg-neutral-900/60 border-neutral-800 overflow-hidden shadow-xl">
+            <div className="p-6 border-b border-neutral-800 flex justify-between items-center">
+              <h2 className="text-sm font-bold text-neutral-400 uppercase tracking-widest">Base de Clientes Cadastrados (Acompanhamento)</h2>
+              <span className="text-xs text-neutral-500 font-bold uppercase">{patients.length} Clientes</span>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left">
+                <thead className="bg-neutral-950/80 border-b border-neutral-800">
+                  <tr>
+                    <th className="p-4 text-xs font-bold text-neutral-500 uppercase">Cliente</th>
+                    <th className="p-4 text-xs font-bold text-neutral-500 uppercase">Contato</th>
+                    <th className="p-4 text-xs font-bold text-neutral-500 uppercase">Procedimento Vinculado</th>
+                    <th className="p-4 text-xs font-bold text-neutral-500 uppercase">Última Visita Registrada</th>
+                    <th className="p-4 text-xs font-bold text-neutral-500 uppercase">Próximo Retorno Programado</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-neutral-800/40">
+                  {patients.map((p) => {
+                    const proxDate = new Date(p.proximo_atendimento + "T00:00:00");
+                    const isAtrasado = proxDate < new Date();
+                    return (
+                      <tr key={p.id} className="hover:bg-neutral-800/20 transition-colors">
+                        <td className="p-4 text-neutral-200 font-bold text-sm uppercase">{p.nome}</td>
+                        <td className="p-4 text-neutral-400 text-xs">{p.telefone || "-"}</td>
+                        <td className="p-4 text-neutral-400 text-xs uppercase">{p.procedimento || "Limpeza Profissional"}</td>
+                        <td className="p-4 text-neutral-400 text-xs">{new Date(p.ultimo_atendimento + "T00:00:00").toLocaleDateString('pt-BR')}</td>
+                        <td className="p-4 text-xs font-medium">
+                          <span className={isAtrasado ? "text-red-400 font-bold" : "text-emerald-400"}>
+                            {proxDate.toLocaleDateString('pt-BR')} {isAtrasado && "⚠️"}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  {patients.length === 0 && (
+                    <tr><td colSpan={5} className="p-8 text-center text-neutral-500 text-sm">Nenhum cliente cadastrado no sistema.</td></tr>
                   )}
                 </tbody>
               </table>
