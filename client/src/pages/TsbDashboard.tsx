@@ -42,7 +42,6 @@ export default function TsbDashboard() {
     { name: "Emergência", price: 80 }
   ];
 
-  // Função auxiliar para resetar procedimentos sem marcadores
   const getFreshProcedures = () => LISTA_PROCEDIMENTOS_PADRAO.map(p => ({ name: p.name, checked: false, value: p.price.toString() }));
 
   // Form de Clientes (Aba 1)
@@ -103,7 +102,7 @@ export default function TsbDashboard() {
     fetchAtendimentos();
   }, [filtroFinancas]);
 
-  // Cálculo da data do próximo retorno para cadastro/edição de cliente
+  // Cálculo Dinâmico da Data de Retorno
   useEffect(() => {
     if (patientForm.ultimo_atendimento && patientForm.recorrencia_meses !== "") {
       const meses = parseInt(patientForm.recorrencia_meses) || 0;
@@ -120,15 +119,18 @@ export default function TsbDashboard() {
     e.preventDefault();
     try {
       const token = localStorage.getItem("tsb_token");
-      await api.post("/tsb", { ...patientForm }, { headers: { Authorization: `Bearer ${token}` } });
+      
+      // TRAVA DE SEGURANÇA: Garante que o Front mande uma data calculada caso não atualize no state a tempo
+      let payloadProximoAtendimento = patientForm.proximo_atendimento;
+      if (!payloadProximoAtendimento && patientForm.ultimo_atendimento) {
+        const d = new Date(patientForm.ultimo_atendimento + "T00:00:00");
+        d.setMonth(d.getMonth() + (parseInt(patientForm.recorrencia_meses) || 6));
+        payloadProximoAtendimento = d.toISOString().split('T')[0];
+      }
+
+      await api.post("/tsb", { ...patientForm, proximo_atendimento: payloadProximoAtendimento }, { headers: { Authorization: `Bearer ${token}` } });
       toast.success("Cliente cadastrado com sucesso!");
       setIsModalOpen(false);
-      setPatientForm({
-        nome: "", telefone: "", procedimento: defaultProcedure,
-        recorrencia_meses: "6",
-        ultimo_atendimento: new Date().toISOString().split('T')[0],
-        proximo_atendimento: ""
-      });
       fetchPatients();
     } catch (e) {
       toast.error("Erro ao salvar cliente.");
@@ -137,13 +139,24 @@ export default function TsbDashboard() {
 
   const handleOpenEditPatientModal = (patient: TsbPatient) => {
     setEditingPatientId(patient.id);
+    
+    // Tratamento para evitar que pegue lixo do banco de dados antigo com Invalid Date
+    const rawProximo = patient.proximo_atendimento;
+    const isInvalid = !rawProximo || rawProximo.includes("Invalid");
+    let safeProximo = rawProximo;
+    if (isInvalid && patient.ultimo_atendimento) {
+       const d = new Date(patient.ultimo_atendimento + "T00:00:00");
+       d.setMonth(d.getMonth() + (patient.recorrencia_meses || 6));
+       safeProximo = d.toISOString().split('T')[0];
+    }
+
     setPatientForm({
       nome: patient.nome,
       telefone: patient.telefone || "",
       procedimento: patient.procedimento || defaultProcedure,
       recorrencia_meses: (patient.recorrencia_meses || 6).toString(),
       ultimo_atendimento: patient.ultimo_atendimento ? patient.ultimo_atendimento.split("T")[0] : new Date().toISOString().split('T')[0],
-      proximo_atendimento: patient.proximo_atendimento ? patient.proximo_atendimento.split("T")[0] : ""
+      proximo_atendimento: safeProximo ? safeProximo.split("T")[0] : ""
     });
     setIsEditPatientModalOpen(true);
   };
@@ -705,11 +718,15 @@ export default function TsbDashboard() {
             <Receipt className="w-4 h-4 mr-2" /> Registrar Atendimento TSB
           </Button>
           <Button onClick={() => {
+            const dataHojeStr = new Date().toISOString().split('T')[0];
+            const dataProx = new Date();
+            dataProx.setMonth(dataProx.getMonth() + 6);
+            
             setPatientForm({
               nome: "", telefone: "", procedimento: defaultProcedure,
               recorrencia_meses: "6",
-              ultimo_atendimento: new Date().toISOString().split('T')[0],
-              proximo_atendimento: ""
+              ultimo_atendimento: dataHojeStr,
+              proximo_atendimento: dataProx.toISOString().split('T')[0]
             });
             setIsModalOpen(true);
           }} className="bg-teal-600 hover:bg-teal-700 text-white font-bold h-11">
@@ -758,7 +775,9 @@ export default function TsbDashboard() {
                   <p className="text-neutral-400 text-xs font-bold uppercase tracking-widest">Retornos nos Próximos 30 dias</p>
                   <p className="text-3xl font-black text-amber-400 mt-1">
                     {patients.filter(p => {
-                      const prox = new Date(p.proximo_atendimento + "T00:00:00");
+                      const proxDateStr = p.proximo_atendimento;
+                      if (!proxDateStr || proxDateStr.includes("Invalid")) return false;
+                      const prox = new Date(proxDateStr + "T00:00:00");
                       const limite = new Date(); limite.setDate(limite.getDate() + 30);
                       return prox <= limite && prox >= new Date();
                     }).length}
@@ -780,7 +799,11 @@ export default function TsbDashboard() {
                   <div>
                     <span className="text-[10px] text-neutral-500 font-bold uppercase block tracking-wider">Agendados</span>
                     <span className="text-xl font-black text-teal-400">
-                      {patients.filter(p => new Date(p.proximo_atendimento + "T00:00:00") >= new Date()).length}
+                      {patients.filter(p => {
+                        const proxDateStr = p.proximo_atendimento;
+                        if (!proxDateStr || proxDateStr.includes("Invalid")) return false;
+                        return new Date(proxDateStr + "T00:00:00") >= new Date();
+                      }).length}
                     </span>
                   </div>
                 </div>
@@ -804,17 +827,20 @@ export default function TsbDashboard() {
                 </thead>
                 <tbody className="divide-y divide-neutral-800/50">
                   {patients.map((p) => {
-                    const proxDate = new Date(p.proximo_atendimento + "T00:00:00");
-                    const isAtrasado = proxDate < new Date();
+                    const proxDateStr = p.proximo_atendimento;
+                    const isValidDate = proxDateStr && proxDateStr.trim() !== "" && !proxDateStr.includes("Invalid");
+                    const proxDate = isValidDate ? new Date(proxDateStr + "T00:00:00") : null;
+                    const isAtrasado = proxDate ? (proxDate < new Date()) : false;
+
                     return (
                       <tr key={p.id} className="hover:bg-neutral-800/20 transition-colors">
                         <td className="p-4 text-white font-bold text-sm uppercase">{p.nome}</td>
                         <td className="p-4 text-neutral-400 text-sm">{p.telefone || "-"}</td>
                         <td className="p-4 text-neutral-300 text-sm uppercase">{p.procedimento || "Limpeza Profissional"}</td>
-                        <td className="p-4 text-neutral-400 text-sm">{new Date(p.ultimo_atendimento + "T00:00:00").toLocaleDateString('pt-BR')}</td>
+                        <td className="p-4 text-neutral-400 text-sm">{p.ultimo_atendimento ? new Date(p.ultimo_atendimento + "T00:00:00").toLocaleDateString('pt-BR') : "-"}</td>
                         <td className="p-4 text-sm font-medium">
                           <span className={isAtrasado ? "text-red-400 font-bold" : "text-emerald-400"}>
-                            {proxDate.toLocaleDateString('pt-BR')} {isAtrasado && "⚠️"}
+                            {proxDate ? proxDate.toLocaleDateString('pt-BR') : "Sem Data"} {isAtrasado && "⚠️"}
                           </span>
                         </td>
                         <td className="p-4 text-center space-x-1">
@@ -985,17 +1011,20 @@ export default function TsbDashboard() {
                 </thead>
                 <tbody className="divide-y divide-neutral-800/40">
                   {patients.map((p) => {
-                    const proxDate = new Date(p.proximo_atendimento + "T00:00:00");
-                    const isAtrasado = proxDate < new Date();
+                    const proxDateStr = p.proximo_atendimento;
+                    const isValidDate = proxDateStr && proxDateStr.trim() !== "" && !proxDateStr.includes("Invalid");
+                    const proxDate = isValidDate ? new Date(proxDateStr + "T00:00:00") : null;
+                    const isAtrasado = proxDate ? (proxDate < new Date()) : false;
+
                     return (
                       <tr key={p.id} className="hover:bg-neutral-800/20 transition-colors">
                         <td className="p-4 text-neutral-200 font-bold text-sm uppercase">{p.nome}</td>
                         <td className="p-4 text-neutral-400 text-xs">{p.telefone || "-"}</td>
                         <td className="p-4 text-neutral-400 text-xs uppercase">{p.procedimento || "Limpeza Profissional"}</td>
-                        <td className="p-4 text-neutral-400 text-xs">{new Date(p.ultimo_atendimento + "T00:00:00").toLocaleDateString('pt-BR')}</td>
+                        <td className="p-4 text-neutral-400 text-xs">{p.ultimo_atendimento ? new Date(p.ultimo_atendimento + "T00:00:00").toLocaleDateString('pt-BR') : "-"}</td>
                         <td className="p-4 text-xs font-medium">
                           <span className={isAtrasado ? "text-red-400 font-bold" : "text-emerald-400"}>
-                            {proxDate.toLocaleDateString('pt-BR')} {isAtrasado && "⚠️"}
+                            {proxDate ? proxDate.toLocaleDateString('pt-BR') : "Sem Data"} {isAtrasado && "⚠️"}
                           </span>
                         </td>
                       </tr>
